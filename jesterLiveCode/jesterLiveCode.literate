@@ -1,0 +1,178 @@
+# Creating a Rhino plug-in
+
+Introduction into writing a Rhino plug-in. For this plug-in we are going to use
+Visual Studio Code and dotnet tools.
+
+## Creating the project
+
+Since the plug-in is essentially a DLL, with the extension renamed to RHP, we
+create a classlib template project.
+
+``` PS
+PS> dotnet new classlib
+```
+
+To have the generated project compile as a Rhino plug-in, we need to make some
+changes to the project file. Rhino 7 targets itself .NET 4.8 framework, so we
+are going to do the same.
+
+This also means that we need to disable the C# 10 features.
+
+We also need to tell the project that we want an RHP file, not a DLL. For this
+we are going to use the `<TargetExt>` tag.
+
+``` xml
+<TargetExt>.rhp</TargetExt>
+```
+
+We also want to control the project management manually. This means we need to
+disable default items, as well as disable automatic assembly information
+generation. This can be done with the tags `<EnableDefaultItems>` and
+`<GenerateAssemblyInfo>`.
+
+``` xml
+<EnableDefaultItems>False</EnableDefaultItems>
+<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+```
+
+To be able to use RhinoCommon SDK we need to add the RhinoCommon package
+reference from NuGet. The current version we are going to use is
+7.12.21313.6341.
+
+## Creating the plug-in class
+
+A Rhino plug-in derives from one of the plug-in classes that is provided by the
+`Rhino.PlugIns` namespace. There are several available, for import, export, and
+so. But our case we are going to do just a simple utility plug-in. Such plug-in
+derives from `Rhino.PlugIns.PlugIn`.
+
+``` csharp : <<jesterLiveCode plug-in.*>>= ./jesterLiveCode/jesterLiveCodePlugin.cs
+using Rhino;
+using Rhino.PlugIns;
+
+namespace jesterLiveCode {
+
+    public class jesterLiveCodePlugin : PlugIn
+    {
+        <<jesterLiveCode plug-in construction>>
+    }
+}
+```
+
+Rhino plug-ins are going to be initialized by Rhino, and for plug-ins there
+should always be only one instance. So a singleton pattern here is going to be
+needed.
+
+``` csharp : <<jesterLiveCode plug-in construction>>=
+public jesterLiveCodePlugin()
+{
+    if(Instance == null)
+    {
+        Instance = this;
+    }
+}
+
+public static jesterLiveCodePlugin Instance { get; private set; }
+```
+
+## Setting up the assembly information
+
+For to be able to load the plug-in properly the correct assembly attributes need
+to be present. The `PlugInDescription` attribute needs to be set with several
+different types. Also the assembly needs to have a unique GUID. And finally
+there needs to be file versioning.
+
+``` csharp : <<jesterLiveCode assembly info.*>>= ./jesterLiveCode/Properties/AssemblyInfo.cs
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Rhino.PlugIns;
+[assembly: PlugInDescription(DescriptionType.Address, "Turku")]
+[assembly: PlugInDescription(DescriptionType.Country, "Finland")]
+[assembly: PlugInDescription(DescriptionType.Email, "jesterking@letwory.net")]
+[assembly: PlugInDescription(DescriptionType.Phone, "-")]
+[assembly: PlugInDescription(DescriptionType.Fax, "-")]
+[assembly: PlugInDescription(DescriptionType.Organization, "Letwory Interactive Oy")]
+[assembly: PlugInDescription(DescriptionType.UpdateUrl, "-")]
+[assembly: PlugInDescription(DescriptionType.WebSite, "https://www.letworyinteractive.com")]
+
+
+[assembly: AssemblyTitle("jesterLiveCode")] // Plug-In title is extracted from this
+[assembly: AssemblyDescription("A plug-in showing the ropes of writing code for Rhino.")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("Letwory Interactive Oy")]
+[assembly: AssemblyProduct("")]
+[assembly: AssemblyCopyright("Copyright ©  2021")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+
+// Setting ComVisible to false makes the types in this assembly not visible
+// to COM components.  If you need to access a type in this assembly from
+// COM, set the ComVisible attribute to true on that type.
+[assembly: ComVisible(false)]
+
+// The following GUID is for the ID of the typelib if this project is exposed to COM
+[assembly: Guid("0fda72f0-ccd3-4b75-8896-f495ae82fc18")]
+// Version information for an assembly consists of the following four values:
+//
+//      Major Version
+//      Minor Version
+//      Build Number
+//      Revision
+//
+// You can specify all the values or you can default the Build and Revision Numbers
+// by using the '*' as shown below:
+// [assembly: AssemblyVersion("1.0.*")]
+[assembly: AssemblyVersion("0.0.1.0")]
+[assembly: AssemblyFileVersion("0.0.1.0")]
+```
+
+## Creating a command
+
+A command in Rhino derives from `Rhino.Commands.Command`. There two mandatory
+parts for a command to implement to get a minimal implementation.
+
+For this command we are going to start a fragment where we are going to collect
+all the namespace usages.
+
+We need at least the `Rhino.Commands` namespace. And lets also bring in `Rhino`,
+since that is where `RhinoDoc` lives.
+
+``` csharp : <<first command usings>>=
+using Rhino;
+using Rhino.Commands;
+```
+
+Our command class is going to be called `jesterLiveCodeCommandOne`, primarily
+due to lack of imagination.
+
+``` csharp : <<first command class.*>>= ./jesterLiveCode/jesterLiveCodeCommandOne.cs
+<<first command usings>>
+
+namespace jesterLiveCode
+{
+    public class jesterLiveCodeCommandOne : Command
+    {
+        <<first command overrides>>
+    }
+}
+```
+
+### The mandatory overrides for a Command class
+
+To get a minimal working `Command` the property `EnglishName`. This property will essentially be the name of the command as you type it into the Rhino command-line.
+
+``` csharp : <<first command overrides>>=
+public override string EnglishName => "jesterLiveCodeCommandOne";
+```
+
+We also need to override the method `RunCommand`, which is going to be the actual meat of the command. Here the driving logic of the command will live. For now we are going to print a simple message.
+
+
+``` csharp : <<first command overrides>>=+
+protected override Result RunCommand(RhinoDoc doc, RunMode mode)
+{
+    RhinoApp.WriteLine("jesterLiveCodeCommandOne`. says hello");
+    return Result.Success;
+}
+```

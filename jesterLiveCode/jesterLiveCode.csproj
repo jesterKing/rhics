@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net4.8</TargetFramework>
+		<TargetExt>.rhp</TargetExt>
+		<EnableDefaultItems>False</EnableDefaultItems>
+		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="RhinoCommon" Version="7.12.21313.6341"/>
+	</ItemGroup>
+  <ItemGroup>
+    <Compile Include="jesterLiveCodePlugin.cs" />
+    <Compile Include="jesterLiveCodeCommandOne.cs" />
+    <Compile Include="Properties/AssemblyInfo.cs" />
+  </ItemGroup>
+</Project>
