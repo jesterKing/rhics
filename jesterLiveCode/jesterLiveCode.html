@@ -132,12 +132,101 @@ due to lack of imagination.</p>
 <p>To get a minimal working <code>Command</code> the property <code>EnglishName</code>. This property will essentially be the name of the command as you type it into the Rhino command-line.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> EnglishName =&gt; <span class="hljs-string">&quot;jesterLiveCodeCommandOne&quot;</span>;
 </code></pre>
-</div></div><p>We also need to override the method <code>RunCommand</code>, which is going to be the actual meat of the command. Here the driving logic of the command will live. For now we are going to print a simple message.</p>
+</div></div><p>We also need to override the method <code>RunCommand</code>, which is going to be the
+actual meat of the command. Here the driving logic of the command will live. We
+want to add an object, a box actually, with given dimensions to a place where
+the user has picked a point.</p>
+<p>The main structure looks a bit like this:</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> Result <span class="hljs-title">RunCommand</span>(<span class="hljs-params">RhinoDoc doc, RunMode mode</span>)</span>
 {
-    RhinoApp.WriteLine(<span class="hljs-string">&quot;jesterLiveCodeCommandOne`. says hello&quot;</span>);
+    &lt;&lt;<span class="hljs-keyword">add</span> command options&gt;&gt;
+    &lt;&lt;<span class="hljs-keyword">get</span> point&gt;&gt;
+    &lt;&lt;handle <span class="hljs-keyword">get</span> loop&gt;&gt;
+    &lt;&lt;<span class="hljs-keyword">add</span> the <span class="hljs-built_in">object</span>&gt;&gt;
     <span class="hljs-keyword">return</span> Result.Success;
 }
+</code></pre>
+</div></div><p>First we need to add the command options. In our case we are going to use just
+simple integer options for the dimensions of the box. To be able to use the
+custom input classes we need to ensure we have the proper namespace added. The
+Rhino <code>Get</code> classes return also a <code>GetResult</code>, which is provided by the
+<code>Rhino.Input</code> namespace.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Input;
+<span class="hljs-keyword">using</span> Rhino.Input.Custom;
+</code></pre>
+</div></div><p>Now we are able to use all classes provided by the namespace <code>Rhino.Input.Custom</code>.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;add command options&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-built_in">int</span> width = <span class="hljs-number">10</span>;
+<span class="hljs-built_in">int</span> length = <span class="hljs-number">10</span>;
+<span class="hljs-built_in">int</span> height = <span class="hljs-number">10</span>;
+
+OptionInteger widthOption = <span class="hljs-keyword">new</span> OptionInteger(width, <span class="hljs-number">1</span>, <span class="hljs-number">50</span>);
+OptionInteger lengthOption = <span class="hljs-keyword">new</span> OptionInteger(length, <span class="hljs-number">1</span>, <span class="hljs-number">50</span>);
+OptionInteger heightOption = <span class="hljs-keyword">new</span> OptionInteger(height, <span class="hljs-number">1</span>, <span class="hljs-number">50</span>);
+</code></pre>
+</div></div><p>As mention we want to add the box to a user picked position. For that we need
+the <code>GetPoint</code> class. And we can add the options to the instance of that class
+when we have one. It is also good to tell the user what is expected from them,
+so lets set the command-prompt to &quot;Select a location&quot;. The user is supposed to
+press <code>Enter</code> when they are happy with the given settings. To this end we need
+to ensure that our <code>GetPoint</code> instance actually can accept nothing.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;get point&gt;&gt;=</div><div class="code"><pre><code>Point3d point = Point3d.Unset;
+GetPoint getPoint = <span class="hljs-keyword">new</span> GetPoint();
+getPoint.AcceptNothing(<span class="hljs-literal">true</span>);
+getPoint.SetCommandPrompt(<span class="hljs-string">&quot;Pick a location, and enter when done&quot;</span>);
+getPoint.AddOptionInteger(<span class="hljs-string">&quot;Width&quot;</span>, <span class="hljs-keyword">ref</span> widthOption);
+getPoint.AddOptionInteger(<span class="hljs-string">&quot;Length&quot;</span>, <span class="hljs-keyword">ref</span> lengthOption);
+getPoint.AddOptionInteger(<span class="hljs-string">&quot;Height&quot;</span>, <span class="hljs-keyword">ref</span> heightOption);
+</code></pre>
+</div></div><p>Since we are getting a <code>Point3d</code> instance we need to ensure that we have the
+<code>Rhino.Geometry</code> namespace available to us.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Geometry;
+<span class="hljs-keyword">using</span> System.Collections.Generic;
+</code></pre>
+</div></div><p>Now we can start handling the get loop. The loop will be essentially an eternal
+loop with proper exit conditions sprinkled throughout the loop.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;handle get loop&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">for</span>(;;)
+{
+    GetResult result = getPoint.Get();
+
+    <span class="hljs-keyword">if</span>(result == GetResult.Point)
+    {
+        point = getPoint.Point();
+        RhinoApp.WriteLine(<span class="hljs-string">$&quot;User clicked point <span class="hljs-subst">{point}</span>&quot;</span>);
+        <span class="hljs-keyword">continue</span>;
+    }
+
+    <span class="hljs-keyword">if</span>(result == GetResult.Option)
+    {
+        width = widthOption.CurrentValue;
+        length = lengthOption.CurrentValue;
+        height = heightOption.CurrentValue;
+
+        RhinoApp.WriteLine(<span class="hljs-string">$&quot;Current given dimensions <span class="hljs-subst">{width}</span>x<span class="hljs-subst">{length}</span>x<span class="hljs-subst">{height}</span>&quot;</span>);
+        <span class="hljs-keyword">continue</span>;
+    }
+
+    <span class="hljs-keyword">if</span>(result == GetResult.Nothing)
+    {
+        <span class="hljs-keyword">break</span>;
+    }
+
+    <span class="hljs-keyword">if</span>(result == GetResult.Cancel)
+    {
+        RhinoApp.WriteLine(<span class="hljs-string">&quot;Command cancelled&quot;</span>);
+        <span class="hljs-keyword">return</span> Result.Cancel;
+    }
+}
+</code></pre>
+</div></div><p>Once we get out of the loop and are still in the command we can add the object
+to the specifications given by the user on the command-line.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;add the object&gt;&gt;=</div><div class="code"><pre><code>Plane p = <span class="hljs-keyword">new</span> Plane(point, Vector3d.ZAxis);
+Interval widthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, width);
+Interval lengthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, length);
+Interval heightInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, height);
+Box box = <span class="hljs-keyword">new</span> Box(p, widthInterval, lengthInterval, heightInterval);
+Brep boxBrep = box.ToBrep();
+doc.Objects.AddBrep(boxBrep);
+doc.Views.Redraw();
 </code></pre>
 </div></div>
 	</body>
