@@ -10,7 +10,8 @@
 	</ItemGroup>
   <ItemGroup>
     <Compile Include="jesterLiveCodePlugin.cs" />
-    <Compile Include="jesterLiveCodeCommandOne.cs" />
+    <Compile Include="jesterBoxCommand.cs" />
+    <Compile Include="jesterBoxConduit.cs" />
     <Compile Include="Properties/AssemblyInfo.cs" />
   </ItemGroup>
 </Project>

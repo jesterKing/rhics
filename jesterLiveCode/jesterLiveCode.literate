@@ -143,33 +143,44 @@ using Rhino;
 using Rhino.Commands;
 ```
 
-Our command class is going to be called `jesterLiveCodeCommandOne`, primarily
-due to lack of imagination.
+Our command class is going to be called `jesterBoxCommand`, which will generate
+a custom object (TBD) that can be eventually controlled via a custom panel.
+While our command is active we'll be drawing temporary results with the dislay
+conduit called `jesterBoxConduit`.
 
-``` csharp : <<first command class.*>>= ./jesterLiveCode/jesterLiveCodeCommandOne.cs
+Apart from the necessary command overrides there will be some utilities
+implementated in this class that can be used for creating and visualizing our
+object. These will be provided in `<<jesterBox command utilities>>`.
+
+``` csharp : <<first command class.*>>= ./jesterLiveCode/jesterBoxCommand.cs
 <<first command usings>>
 
 namespace jesterLiveCode
 {
-    public class jesterLiveCodeCommandOne : Command
+    public class jesterBoxCommand: Command
     {
         <<first command overrides>>
+        <<jesterBox command utilities>>
     }
 }
 ```
 
 ### The mandatory overrides for a Command class
 
-To get a minimal working `Command` the property `EnglishName`. This property will essentially be the name of the command as you type it into the Rhino command-line.
+To get a minimal working `Command` the property `EnglishName`. This property
+will essentially be the name of the command as you type it into the Rhino
+command-line.
 
 ``` csharp : <<first command overrides>>=
-public override string EnglishName => "jesterLiveCodeCommandOne";
+public override string EnglishName => "jesterBox";
 ```
 
 We also need to override the method `RunCommand`, which is going to be the
 actual meat of the command. Here the driving logic of the command will live. We
 want to add an object, a box actually, with given dimensions to a place where
 the user has picked a point.
+
+#### RunCommand implementation
 
 The main structure looks a bit like this:
 
@@ -179,11 +190,14 @@ protected override Result RunCommand(RhinoDoc doc, RunMode mode)
 {
     <<add command options>>
     <<get point>>
+    <<set up jesterBox display conduit>>
     <<handle get loop>>
     <<add the object>>
     return Result.Success;
 }
 ```
+
+##### Command options
 
 First we need to add the command options. In our case we are going to use just
 simple integer options for the dimensions of the box. To be able to use the
@@ -208,6 +222,8 @@ OptionInteger lengthOption = new OptionInteger(length, 1, 50);
 OptionInteger heightOption = new OptionInteger(height, 1, 50);
 ```
 
+##### GetPoint instance
+
 As mention we want to add the box to a user picked position. For that we need
 the `GetPoint` class. And we can add the options to the instance of that class
 when we have one. It is also good to tell the user what is expected from them,
@@ -216,7 +232,7 @@ press `Enter` when they are happy with the given settings. To this end we need
 to ensure that our `GetPoint` instance actually can accept nothing.
 
 ``` csharp : <<get point>>=
-Point3d point = Point3d.Unset;
+Point3d point = Point3d.Origin;
 GetPoint getPoint = new GetPoint();
 getPoint.AcceptNothing(true);
 getPoint.SetCommandPrompt("Pick a location, and enter when done");
@@ -233,8 +249,31 @@ using Rhino.Geometry;
 using System.Collections.Generic;
 ```
 
+##### Initialize the display conduit
+
+To visualize the user input we need our `jesterBoxConduit`. We need to
+give it all the information it needs to draw properly. First however we need to
+initialize an instance that we can use.
+
+``` csharp : <<set up jesterBox display conduit>>=
+jesterBoxConduit conduit = new jesterBoxConduit();
+
+conduit.Location = point;
+conduit.Width = width;
+conduit.Height = height;
+conduit.Length = length;
+
+conduit.Enabled = true;
+```
+
+
+##### Input loop handling
+
 Now we can start handling the get loop. The loop will be essentially an eternal
 loop with proper exit conditions sprinkled throughout the loop.
+
+Each time an option is changed, or a point is clicked we need to update the
+conduit as well to ensure proper visualization of the current settings.
 
 ``` csharp : <<handle get loop>>=
 for(;;)
@@ -244,6 +283,7 @@ for(;;)
     if(result == GetResult.Point)
     {
         point = getPoint.Point();
+        conduit.Location = point;
         RhinoApp.WriteLine($"User clicked point {point}");
         continue;
     }
@@ -253,6 +293,10 @@ for(;;)
         width = widthOption.CurrentValue;
         length = lengthOption.CurrentValue;
         height = heightOption.CurrentValue;
+
+        conduit.Width = width;
+        conduit.Height = height;
+        conduit.Length = length;
 
         RhinoApp.WriteLine($"Current given dimensions {width}x{length}x{height}");
         continue;
@@ -265,22 +309,126 @@ for(;;)
 
     if(result == GetResult.Cancel)
     {
+        conduit.Enabled = false;
         RhinoApp.WriteLine("Command cancelled");
         return Result.Cancel;
     }
 }
 ```
 
+##### Adding the object
+
 Once we get out of the loop and are still in the command we can add the object
 to the specifications given by the user on the command-line.
 
+To add the object we use the `CreateJesterBox` method provided by `<<jesterBox
+command utilities>>`.
+
+We also disable our conduit, so it doesn't get called all the time for nothing.
+
 ``` csharp : <<add the object>>=
-Plane p = new Plane(point, Vector3d.ZAxis);
-Interval widthInterval = new Interval(0, width);
-Interval lengthInterval = new Interval(0, length);
-Interval heightInterval = new Interval(0, height);
-Box box = new Box(p, widthInterval, lengthInterval, heightInterval);
-Brep boxBrep = box.ToBrep();
+conduit.Enabled = false;
+Brep boxBrep = CreateJesterBox(point, width, height, length);
 doc.Objects.AddBrep(boxBrep);
 doc.Views.Redraw();
+```
+
+``` csharp : <<jesterBox command utilities>>=
+static public Brep CreateJesterBox(Point3d point, int width, int height, int length)
+{
+    Plane p = new Plane(point, Vector3d.ZAxis);
+    Interval widthInterval = new Interval(0, width);
+    Interval lengthInterval = new Interval(0, length);
+    Interval heightInterval = new Interval(0, height);
+    Box box = new Box(p, widthInterval, lengthInterval, heightInterval);
+    Brep boxBrep = box.ToBrep();
+
+    if(boxBrep == null)
+    {
+        System.Diagnostics.Debug.WriteLine("Our brep is not good :/");
+        System.Diagnostics.Debug.WriteLine($"{point}, {width}x{height}x{length}");
+        System.Diagnostics.Debug.WriteLine($"...");
+    }
+
+    return boxBrep;
+}
+```
+
+## Creating a DisplayConduit
+
+To be able to show intermediate results of our command while it is still running
+we can use a `DisplayConduit`. This will allow us to draw results without having
+to actually add geometry to the document.
+
+To implement the `DisplayConduit` we need to inherit
+`Rhino.Display.DisplayConduit`, and at least implement calculation of scene
+bounding box and a draw method. For our command and display conduit we are going
+to draw in `DrawOverlay`. We also want to be able to pass on the data to be
+visualized, which we'll do with `<<jesterBoxConduit data access>>`.
+
+``` csharp : <<jesterBox display conduit.*>>= ./jesterLiveCode/jesterBoxConduit.cs
+<<jesterBox usings>>
+
+namespace jesterLiveCode {
+    public class jesterBoxConduit : DisplayConduit
+    {
+        <<jesterBoxConduit data access>>
+        <<jesterBoxConduit calculate bounding box>>
+        <<jesterBoxConduit draw overlay>>
+    }
+}
+```
+
+We must not forget to add the proper namespace so we can use it in our class
+implementation:
+
+``` csharp : <<jesterBox usings>>=
+using Rhino.Display;
+```
+
+### Data access
+
+The display conduit implementation will provide several properties to set and
+read the information we want to visualize. This will be for the location, width,
+height and length of our object.
+
+``` csharp : <<jesterBoxConduit data access>>=
+public Point3d Location { get; set; }
+public int Width { get; set; }
+public int Height { get; set; }
+public int Length { get; set; }
+```
+
+Since we need `Point3d` we also need to bring in the `Rhino.Geometry` namespace.
+
+``` csharp : <<jesterBox usings>>=+
+using Rhino.Geometry;
+```
+
+### Calculating the bounding box
+
+To be able to properly draw our geometry we need to tell the display pipeline
+what the bounding box is for our geometry. Without the proper bounding box
+geometry will easily get clipped.
+
+``` csharp : <<jesterBoxConduit calculate bounding box>>=
+protected override void CalculateBoundingBox(CalculateBoundingBoxEventArgs bbe)
+{
+    base.CalculateBoundingBox(bbe);
+    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    BoundingBox bb = box.GetBoundingBox(false);
+
+    bbe.IncludeBoundingBox(bb);
+}
+```
+
+### Drawing the temporary geometry
+
+``` csharp : <<jesterBoxConduit draw overlay>>=
+protected override void DrawOverlay(DrawEventArgs drawe)
+{
+    base.DrawOverlay(drawe);
+    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+}
 ```

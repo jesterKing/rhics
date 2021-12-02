@@ -116,37 +116,48 @@ since that is where <code>RhinoDoc</code> lives.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino;
 <span class="hljs-keyword">using</span> Rhino.Commands;
 </code></pre>
-</div></div><p>Our command class is going to be called <code>jesterLiveCodeCommandOne</code>, primarily
-due to lack of imagination.</p>
+</div></div><p>Our command class is going to be called <code>jesterBoxCommand</code>, which will generate
+a custom object (TBD) that can be eventually controlled via a custom panel.
+While our command is active we'll be drawing temporary results with the dislay
+conduit called <code>jesterBoxConduit</code>.</p>
+<p>Apart from the necessary command overrides there will be some utilities
+implementated in this class that can be used for creating and visualizing our
+object. These will be provided in <code>&lt;&lt;jesterBox command utilities&gt;&gt;</code>.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command class.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;first command usings&gt;&gt;
 
 <span class="hljs-keyword">namespace</span> <span class="hljs-title">jesterLiveCode</span>
 {
-    <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">jesterLiveCodeCommandOne</span> : <span class="hljs-title">Command</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">jesterBoxCommand</span>: <span class="hljs-title">Command</span>
     {
         &lt;&lt;first command overrides&gt;&gt;
+        &lt;&lt;jesterBox command utilities&gt;&gt;
     }
 }
 </code></pre>
 </div></div><h3>The mandatory overrides for a Command class</h3>
-<p>To get a minimal working <code>Command</code> the property <code>EnglishName</code>. This property will essentially be the name of the command as you type it into the Rhino command-line.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> EnglishName =&gt; <span class="hljs-string">&quot;jesterLiveCodeCommandOne&quot;</span>;
+<p>To get a minimal working <code>Command</code> the property <code>EnglishName</code>. This property
+will essentially be the name of the command as you type it into the Rhino
+command-line.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> EnglishName =&gt; <span class="hljs-string">&quot;jesterBox&quot;</span>;
 </code></pre>
 </div></div><p>We also need to override the method <code>RunCommand</code>, which is going to be the
 actual meat of the command. Here the driving logic of the command will live. We
 want to add an object, a box actually, with given dimensions to a place where
 the user has picked a point.</p>
+<h4>RunCommand implementation</h4>
 <p>The main structure looks a bit like this:</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> Result <span class="hljs-title">RunCommand</span>(<span class="hljs-params">RhinoDoc doc, RunMode mode</span>)</span>
 {
     &lt;&lt;<span class="hljs-keyword">add</span> command options&gt;&gt;
     &lt;&lt;<span class="hljs-keyword">get</span> point&gt;&gt;
+    &lt;&lt;<span class="hljs-keyword">set</span> up jesterBox display conduit&gt;&gt;
     &lt;&lt;handle <span class="hljs-keyword">get</span> loop&gt;&gt;
     &lt;&lt;<span class="hljs-keyword">add</span> the <span class="hljs-built_in">object</span>&gt;&gt;
     <span class="hljs-keyword">return</span> Result.Success;
 }
 </code></pre>
-</div></div><p>First we need to add the command options. In our case we are going to use just
+</div></div><h5>Command options</h5>
+<p>First we need to add the command options. In our case we are going to use just
 simple integer options for the dimensions of the box. To be able to use the
 custom input classes we need to ensure we have the proper namespace added. The
 Rhino <code>Get</code> classes return also a <code>GetResult</code>, which is provided by the
@@ -163,13 +174,14 @@ OptionInteger widthOption = <span class="hljs-keyword">new</span> OptionInteger(
 OptionInteger lengthOption = <span class="hljs-keyword">new</span> OptionInteger(length, <span class="hljs-number">1</span>, <span class="hljs-number">50</span>);
 OptionInteger heightOption = <span class="hljs-keyword">new</span> OptionInteger(height, <span class="hljs-number">1</span>, <span class="hljs-number">50</span>);
 </code></pre>
-</div></div><p>As mention we want to add the box to a user picked position. For that we need
+</div></div><h5>GetPoint instance</h5>
+<p>As mention we want to add the box to a user picked position. For that we need
 the <code>GetPoint</code> class. And we can add the options to the instance of that class
 when we have one. It is also good to tell the user what is expected from them,
 so lets set the command-prompt to &quot;Select a location&quot;. The user is supposed to
 press <code>Enter</code> when they are happy with the given settings. To this end we need
 to ensure that our <code>GetPoint</code> instance actually can accept nothing.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;get point&gt;&gt;=</div><div class="code"><pre><code>Point3d point = Point3d.Unset;
+<div class="codefragment"><div class="fragmentname">&lt;&lt;get point&gt;&gt;=</div><div class="code"><pre><code>Point3d point = Point3d.Origin;
 GetPoint getPoint = <span class="hljs-keyword">new</span> GetPoint();
 getPoint.AcceptNothing(<span class="hljs-literal">true</span>);
 getPoint.SetCommandPrompt(<span class="hljs-string">&quot;Pick a location, and enter when done&quot;</span>);
@@ -182,8 +194,24 @@ getPoint.AddOptionInteger(<span class="hljs-string">&quot;Height&quot;</span>, <
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Geometry;
 <span class="hljs-keyword">using</span> System.Collections.Generic;
 </code></pre>
-</div></div><p>Now we can start handling the get loop. The loop will be essentially an eternal
+</div></div><h5>Initialize the display conduit</h5>
+<p>To visualize the user input we need our <code>jesterBoxConduit</code>. We need to
+give it all the information it needs to draw properly. First however we need to
+initialize an instance that we can use.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;set up jesterBox display conduit&gt;&gt;=</div><div class="code"><pre><code>jesterBoxConduit conduit = <span class="hljs-keyword">new</span> jesterBoxConduit();
+
+conduit.Location = point;
+conduit.Width = width;
+conduit.Height = height;
+conduit.Length = length;
+
+conduit.Enabled = <span class="hljs-literal">true</span>;
+</code></pre>
+</div></div><h5>Input loop handling</h5>
+<p>Now we can start handling the get loop. The loop will be essentially an eternal
 loop with proper exit conditions sprinkled throughout the loop.</p>
+<p>Each time an option is changed, or a point is clicked we need to update the
+conduit as well to ensure proper visualization of the current settings.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;handle get loop&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">for</span>(;;)
 {
     GetResult result = getPoint.Get();
@@ -191,6 +219,7 @@ loop with proper exit conditions sprinkled throughout the loop.</p>
     <span class="hljs-keyword">if</span>(result == GetResult.Point)
     {
         point = getPoint.Point();
+        conduit.Location = point;
         RhinoApp.WriteLine(<span class="hljs-string">$&quot;User clicked point <span class="hljs-subst">{point}</span>&quot;</span>);
         <span class="hljs-keyword">continue</span>;
     }
@@ -200,6 +229,10 @@ loop with proper exit conditions sprinkled throughout the loop.</p>
         width = widthOption.CurrentValue;
         length = lengthOption.CurrentValue;
         height = heightOption.CurrentValue;
+
+        conduit.Width = width;
+        conduit.Height = height;
+        conduit.Length = length;
 
         RhinoApp.WriteLine(<span class="hljs-string">$&quot;Current given dimensions <span class="hljs-subst">{width}</span>x<span class="hljs-subst">{length}</span>x<span class="hljs-subst">{height}</span>&quot;</span>);
         <span class="hljs-keyword">continue</span>;
@@ -212,21 +245,97 @@ loop with proper exit conditions sprinkled throughout the loop.</p>
 
     <span class="hljs-keyword">if</span>(result == GetResult.Cancel)
     {
+        conduit.Enabled = <span class="hljs-literal">false</span>;
         RhinoApp.WriteLine(<span class="hljs-string">&quot;Command cancelled&quot;</span>);
         <span class="hljs-keyword">return</span> Result.Cancel;
     }
 }
 </code></pre>
-</div></div><p>Once we get out of the loop and are still in the command we can add the object
+</div></div><h5>Adding the object</h5>
+<p>Once we get out of the loop and are still in the command we can add the object
 to the specifications given by the user on the command-line.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;add the object&gt;&gt;=</div><div class="code"><pre><code>Plane p = <span class="hljs-keyword">new</span> Plane(point, Vector3d.ZAxis);
-Interval widthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, width);
-Interval lengthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, length);
-Interval heightInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, height);
-Box box = <span class="hljs-keyword">new</span> Box(p, widthInterval, lengthInterval, heightInterval);
-Brep boxBrep = box.ToBrep();
+<p>To add the object we use the <code>CreateJesterBox</code> method provided by <code>&lt;&lt;jesterBox command utilities&gt;&gt;</code>.</p>
+<p>We also disable our conduit, so it doesn't get called all the time for nothing.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;add the object&gt;&gt;=</div><div class="code"><pre><code>conduit.Enabled = <span class="hljs-literal">false</span>;
+Brep boxBrep = CreateJesterBox(point, width, height, length);
 doc.Objects.AddBrep(boxBrep);
 doc.Views.Redraw();
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox command utilities&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">static</span> <span class="hljs-keyword">public</span> Brep <span class="hljs-title">CreateJesterBox</span>(<span class="hljs-params">Point3d point, <span class="hljs-built_in">int</span> width, <span class="hljs-built_in">int</span> height, <span class="hljs-built_in">int</span> length</span>)</span>
+{
+    Plane p = <span class="hljs-keyword">new</span> Plane(point, Vector3d.ZAxis);
+    Interval widthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, width);
+    Interval lengthInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, length);
+    Interval heightInterval = <span class="hljs-keyword">new</span> Interval(<span class="hljs-number">0</span>, height);
+    Box box = <span class="hljs-keyword">new</span> Box(p, widthInterval, lengthInterval, heightInterval);
+    Brep boxBrep = box.ToBrep();
+
+    <span class="hljs-keyword">if</span>(boxBrep == <span class="hljs-literal">null</span>)
+    {
+        System.Diagnostics.Debug.WriteLine(<span class="hljs-string">&quot;Our brep is not good :/&quot;</span>);
+        System.Diagnostics.Debug.WriteLine(<span class="hljs-string">$&quot;<span class="hljs-subst">{point}</span>, <span class="hljs-subst">{width}</span>x<span class="hljs-subst">{height}</span>x<span class="hljs-subst">{length}</span>&quot;</span>);
+        System.Diagnostics.Debug.WriteLine(<span class="hljs-string">$&quot;...&quot;</span>);
+    }
+
+    <span class="hljs-keyword">return</span> boxBrep;
+}
+</code></pre>
+</div></div><h2>Creating a DisplayConduit</h2>
+<p>To be able to show intermediate results of our command while it is still running
+we can use a <code>DisplayConduit</code>. This will allow us to draw results without having
+to actually add geometry to the document.</p>
+<p>To implement the <code>DisplayConduit</code> we need to inherit
+<code>Rhino.Display.DisplayConduit</code>, and at least implement calculation of scene
+bounding box and a draw method. For our command and display conduit we are going
+to draw in <code>DrawOverlay</code>. We also want to be able to pass on the data to be
+visualized, which we'll do with <code>&lt;&lt;jesterBoxConduit data access&gt;&gt;</code>.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox display conduit.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;jesterBox usings&gt;&gt;
+
+<span class="hljs-keyword">namespace</span> <span class="hljs-title">jesterLiveCode</span> {
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">jesterBoxConduit</span> : <span class="hljs-title">DisplayConduit</span>
+    {
+        &lt;&lt;jesterBoxConduit data access&gt;&gt;
+        &lt;&lt;jesterBoxConduit calculate bounding box&gt;&gt;
+        &lt;&lt;jesterBoxConduit draw overlay&gt;&gt;
+    }
+}
+</code></pre>
+</div></div><p>We must not forget to add the proper namespace so we can use it in our class
+implementation:</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox usings&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Display;
+</code></pre>
+</div></div><h3>Data access</h3>
+<p>The display conduit implementation will provide several properties to set and
+read the information we want to visualize. This will be for the location, width,
+height and length of our object.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit data access&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> Point3d Location { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
+<span class="hljs-keyword">public</span> <span class="hljs-built_in">int</span> Width { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
+<span class="hljs-keyword">public</span> <span class="hljs-built_in">int</span> Height { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
+<span class="hljs-keyword">public</span> <span class="hljs-built_in">int</span> Length { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
+</code></pre>
+</div></div><p>Since we need <code>Point3d</code> we also need to bring in the <code>Rhino.Geometry</code> namespace.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Geometry;
+</code></pre>
+</div></div><h3>Calculating the bounding box</h3>
+<p>To be able to properly draw our geometry we need to tell the display pipeline
+what the bounding box is for our geometry. Without the proper bounding box
+geometry will easily get clipped.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit calculate bounding box&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">void</span> <span class="hljs-title">CalculateBoundingBox</span>(<span class="hljs-params">CalculateBoundingBoxEventArgs bbe</span>)</span>
+{
+    <span class="hljs-keyword">base</span>.CalculateBoundingBox(bbe);
+    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    BoundingBox bb = box.GetBoundingBox(<span class="hljs-literal">false</span>);
+
+    bbe.IncludeBoundingBox(bb);
+}
+</code></pre>
+</div></div><h3>Drawing the temporary geometry</h3>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit draw overlay&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">void</span> <span class="hljs-title">DrawOverlay</span>(<span class="hljs-params">DrawEventArgs drawe</span>)</span>
+{
+    <span class="hljs-keyword">base</span>.DrawOverlay(drawe);
+    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+}
 </code></pre>
 </div></div>
 	</body>
