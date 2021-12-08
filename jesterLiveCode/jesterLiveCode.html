@@ -6,30 +6,42 @@
 	<h1>Creating a Rhino plug-in</h1>
 <p>Introduction into writing a Rhino plug-in. For this plug-in we are going to use
 Visual Studio Code and dotnet tools.</p>
-<h2>Creating the project</h2>
+<h2>Setting up the project</h2>
 <p>Since the plug-in is essentially a DLL, with the extension renamed to RHP, we
-create a classlib template project.</p>
-<pre><code><span class="hljs-built_in">PS</span>&gt; dotnet new classlib
+create a .csproj file that contains the project description. We are going to add
+all necessary information to the rrespective fragments.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project file.*&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Project</span> <span class="hljs-attr">Sdk</span>=<span class="hljs-string">&quot;Microsoft.NET.Sdk&quot;</span>&gt;</span>
+	<span class="hljs-tag">&lt;<span class="hljs-name">PropertyGroup</span>&gt;</span>
+		&lt;<span class="hljs-tag">&lt;<span class="hljs-name">jesterLiveCode</span> <span class="hljs-attr">project</span> <span class="hljs-attr">properties</span>&gt;</span>&gt;
+	<span class="hljs-tag">&lt;/<span class="hljs-name">PropertyGroup</span>&gt;</span>
+	<span class="hljs-tag">&lt;<span class="hljs-name">ItemGroup</span>&gt;</span>
+		&lt;<span class="hljs-tag">&lt;<span class="hljs-name">jesterLiveCode</span> <span class="hljs-attr">project</span> <span class="hljs-attr">package</span> <span class="hljs-attr">references</span>&gt;</span>&gt;
+	<span class="hljs-tag">&lt;/<span class="hljs-name">ItemGroup</span>&gt;</span>
+	<span class="hljs-tag">&lt;<span class="hljs-name">ItemGroup</span>&gt;</span>
+		&lt;<span class="hljs-tag">&lt;<span class="hljs-name">jesterLiveCode</span> <span class="hljs-attr">source</span> <span class="hljs-attr">files</span>&gt;</span>&gt;
+	<span class="hljs-tag">&lt;/<span class="hljs-name">ItemGroup</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">Project</span>&gt;</span>
 </code></pre>
-<p>To have the generated project compile as a Rhino plug-in, we need to make some
-changes to the project file. Rhino 7 targets itself .NET 4.8 framework, so we
-are going to do the same.</p>
-<p>This also means that we need to disable the C# 10 features.</p>
-<p>We also need to tell the project that we want an RHP file, not a DLL. For this
+</div></div><p>To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetFramework</span>&gt;</span>net4.8<span class="hljs-tag">&lt;/<span class="hljs-name">TargetFramework</span>&gt;</span>
+</code></pre>
+</div></div><p>We also need to tell the project that we want an RHP file, not a DLL. For this
 we are going to use the <code>&lt;TargetExt&gt;</code> tag.</p>
-<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetExt</span>&gt;</span>.rhp<span class="hljs-tag">&lt;/<span class="hljs-name">TargetExt</span>&gt;</span>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetExt</span>&gt;</span>.rhp<span class="hljs-tag">&lt;/<span class="hljs-name">TargetExt</span>&gt;</span>
 </code></pre>
-<p>We also want to control the project management manually. This means we need to
+</div></div><p>We also want to control the project management manually. This means we need to
 disable default items, as well as disable automatic assembly information
 generation. This can be done with the tags <code>&lt;EnableDefaultItems&gt;</code> and
 <code>&lt;GenerateAssemblyInfo&gt;</code>.</p>
-<pre><code><span class="hljs-tag">&lt;<span class="hljs-name">EnableDefaultItems</span>&gt;</span>False<span class="hljs-tag">&lt;/<span class="hljs-name">EnableDefaultItems</span>&gt;</span>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">EnableDefaultItems</span>&gt;</span>False<span class="hljs-tag">&lt;/<span class="hljs-name">EnableDefaultItems</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">GenerateAssemblyInfo</span>&gt;</span>False<span class="hljs-tag">&lt;/<span class="hljs-name">GenerateAssemblyInfo</span>&gt;</span>
 </code></pre>
-<p>To be able to use RhinoCommon SDK we need to add the RhinoCommon package
+</div></div><p>To be able to use RhinoCommon SDK we need to add the RhinoCommon package
 reference from NuGet. The current version we are going to use is
 7.12.21313.6341.</p>
-<h2>Creating the plug-in class</h2>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project package references&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;RhinoCommon&quot;</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">&quot;7.12.21313.6341&quot;</span>/&gt;</span>
+</code></pre>
+</div></div><h2>Creating the plug-in class</h2>
 <p>A Rhino plug-in derives from one of the plug-in classes that is provided by the
 <code>Rhino.PlugIns</code> namespace. There are several available, for import, export, and
 so. But our case we are going to do just a simple utility plug-in. Such plug-in
@@ -44,6 +56,10 @@ derives from <code>Rhino.PlugIns.PlugIn</code>.</p>
         &lt;&lt;jesterLiveCode plug-<span class="hljs-keyword">in</span> construction&gt;&gt;
     }
 }
+</code></pre>
+</div></div><p>The source file needs to be added to the project to have it compiled, since we
+are managing the project manually.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;jesterLiveCodePlugin.cs&quot;</span> /&gt;</span>
 </code></pre>
 </div></div><p>Rhino plug-ins are going to be initialized by Rhino, and for plug-ins there
 should always be only one instance. So a singleton pattern here is going to be
@@ -106,6 +122,9 @@ there needs to be file versioning.</p>
 [<span class="hljs-meta">assembly: AssemblyVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyFileVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
 </code></pre>
+</div></div><p>Add the assembly information file to the project</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;Properties/AssemblyInfo.cs&quot;</span> /&gt;</span>
+</code></pre>
 </div></div><h2>Creating a command</h2>
 <p>A command in Rhino derives from <code>Rhino.Commands.Command</code>. There two mandatory
 parts for a command to implement to get a minimal implementation.</p>
@@ -123,7 +142,9 @@ conduit called <code>jesterBoxConduit</code>.</p>
 <p>Apart from the necessary command overrides there will be some utilities
 implementated in this class that can be used for creating and visualizing our
 object. These will be provided in <code>&lt;&lt;jesterBox command utilities&gt;&gt;</code>.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;first command class.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;first command usings&gt;&gt;
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;jesterBoxCommand.cs&quot;</span> /&gt;</span>
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;first command class.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;first command usings&gt;&gt;
 
 <span class="hljs-keyword">namespace</span> <span class="hljs-title">jesterLiveCode</span>
 {
@@ -149,8 +170,8 @@ the user has picked a point.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> Result <span class="hljs-title">RunCommand</span>(<span class="hljs-params">RhinoDoc doc, RunMode mode</span>)</span>
 {
     &lt;&lt;<span class="hljs-keyword">add</span> command options&gt;&gt;
-    &lt;&lt;<span class="hljs-keyword">get</span> point&gt;&gt;
     &lt;&lt;<span class="hljs-keyword">set</span> up jesterBox display conduit&gt;&gt;
+    &lt;&lt;<span class="hljs-keyword">get</span> point&gt;&gt;
     &lt;&lt;handle <span class="hljs-keyword">get</span> loop&gt;&gt;
     &lt;&lt;<span class="hljs-keyword">add</span> the <span class="hljs-built_in">object</span>&gt;&gt;
     <span class="hljs-keyword">return</span> Result.Success;
@@ -166,7 +187,8 @@ Rhino <code>Get</code> classes return also a <code>GetResult</code>, which is pr
 <span class="hljs-keyword">using</span> Rhino.Input.Custom;
 </code></pre>
 </div></div><p>Now we are able to use all classes provided by the namespace <code>Rhino.Input.Custom</code>.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;add command options&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-built_in">int</span> width = <span class="hljs-number">10</span>;
+<div class="codefragment"><div class="fragmentname">&lt;&lt;add command options&gt;&gt;=</div><div class="code"><pre><code>Point3d point = Point3d.Unset;
+<span class="hljs-built_in">int</span> width = <span class="hljs-number">10</span>;
 <span class="hljs-built_in">int</span> length = <span class="hljs-number">10</span>;
 <span class="hljs-built_in">int</span> height = <span class="hljs-number">10</span>;
 
@@ -176,13 +198,16 @@ OptionInteger heightOption = <span class="hljs-keyword">new</span> OptionInteger
 </code></pre>
 </div></div><h5>GetPoint instance</h5>
 <p>As mention we want to add the box to a user picked position. For that we need
-the <code>GetPoint</code> class. And we can add the options to the instance of that class
-when we have one. It is also good to tell the user what is expected from them,
-so lets set the command-prompt to &quot;Select a location&quot;. The user is supposed to
-press <code>Enter</code> when they are happy with the given settings. To this end we need
-to ensure that our <code>GetPoint</code> instance actually can accept nothing.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;get point&gt;&gt;=</div><div class="code"><pre><code>Point3d point = Point3d.Origin;
-GetPoint getPoint = <span class="hljs-keyword">new</span> GetPoint();
+the <code>GetPoint</code> class. For our project we implement a custom <code>GetPoint</code> class,
+<code>jesterBoxGetPoint</code>, which we will be using to handle interactive mouse
+movements and display some intermediate results while our command is still
+active. And we can add the options to the instance of that class when we have
+one. It is also good to tell the user what is expected from them, so lets set
+the command-prompt to &quot;Select a location&quot;. The user is supposed to press <code>Enter</code>
+when they are happy with the given settings. To this end we need to ensure that
+our <code>jesterBoxGetPoint</code> instance actually can accept nothing.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;get point&gt;&gt;=</div><div class="code"><pre><code>jesterBoxGetPoint getPoint = <span class="hljs-keyword">new</span> jesterBoxGetPoint(conduit);
+point = conduit.Location = conduit.PotentialLocation;
 getPoint.AcceptNothing(<span class="hljs-literal">true</span>);
 getPoint.SetCommandPrompt(<span class="hljs-string">&quot;Pick a location, and enter when done&quot;</span>);
 getPoint.AddOptionInteger(<span class="hljs-string">&quot;Width&quot;</span>, <span class="hljs-keyword">ref</span> widthOption);
@@ -253,10 +278,15 @@ conduit as well to ensure proper visualization of the current settings.</p>
 </code></pre>
 </div></div><h5>Adding the object</h5>
 <p>Once we get out of the loop and are still in the command we can add the object
-to the specifications given by the user on the command-line.</p>
+to the specifications given by the user on the command-line. If no point was
+specified by the user when we get to this point we are going to use the
+<code>PotentialLocation</code> as known by the conduit.</p>
 <p>To add the object we use the <code>CreateJesterBox</code> method provided by <code>&lt;&lt;jesterBox command utilities&gt;&gt;</code>.</p>
 <p>We also disable our conduit, so it doesn't get called all the time for nothing.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;add the object&gt;&gt;=</div><div class="code"><pre><code>conduit.Enabled = <span class="hljs-literal">false</span>;
+<span class="hljs-keyword">if</span>(!point.IsValid) {
+    point = conduit.PotentialLocation;
+}
 Brep boxBrep = CreateJesterBox(point, width, height, length);
 doc.Objects.AddBrep(boxBrep);
 doc.Views.Redraw();
@@ -289,7 +319,9 @@ to actually add geometry to the document.</p>
 bounding box and a draw method. For our command and display conduit we are going
 to draw in <code>DrawOverlay</code>. We also want to be able to pass on the data to be
 visualized, which we'll do with <code>&lt;&lt;jesterBoxConduit data access&gt;&gt;</code>.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox display conduit.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;jesterBox usings&gt;&gt;
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;jesterBoxConduit.cs&quot;</span> /&gt;</span>
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox display conduit.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;jesterBox usings&gt;&gt;
 
 <span class="hljs-keyword">namespace</span> <span class="hljs-title">jesterLiveCode</span> {
     <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">jesterBoxConduit</span> : <span class="hljs-title">DisplayConduit</span>
@@ -313,6 +345,10 @@ height and length of our object.</p>
 <span class="hljs-keyword">public</span> <span class="hljs-built_in">int</span> Height { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
 <span class="hljs-keyword">public</span> <span class="hljs-built_in">int</span> Length { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
 </code></pre>
+</div></div><p>Not only do we need the dimensions and location of the object to be added, we
+<em>also</em> want to know the potential location of the object under the mouse cursor.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit data access&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">public</span> Point3d PotentialLocation { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">set</span>; }
+</code></pre>
 </div></div><p>Since we need <code>Point3d</code> we also need to bring in the <code>Rhino.Geometry</code> namespace.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Geometry;
 </code></pre>
@@ -324,17 +360,65 @@ geometry will easily get clipped.</p>
 {
     <span class="hljs-keyword">base</span>.CalculateBoundingBox(bbe);
     Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    Brep previewBox = jesterBoxCommand.CreateJesterBox(PotentialLocation, Width, Height, Length);
     BoundingBox bb = box.GetBoundingBox(<span class="hljs-literal">false</span>);
+    BoundingBox previewBb = previewBox.GetBoundingBox(<span class="hljs-literal">false</span>);
 
     bbe.IncludeBoundingBox(bb);
+    bbe.IncludeBoundingBox(previewBb);
 }
 </code></pre>
 </div></div><h3>Drawing the temporary geometry</h3>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit draw overlay&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">void</span> <span class="hljs-title">DrawOverlay</span>(<span class="hljs-params">DrawEventArgs drawe</span>)</span>
 {
     <span class="hljs-keyword">base</span>.DrawOverlay(drawe);
-    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
-    drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+    <span class="hljs-keyword">if</span>(Location.IsValid)
+    {
+        Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+        drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+    }
+    Brep previewBox = jesterBoxCommand.CreateJesterBox(PotentialLocation, Width, Height, Length);
+    drawe.Display.DrawBrepWires(previewBox, System.Drawing.Color.Gray);
+}
+</code></pre>
+</div></div><h2>Implementing the custom GetPoint class jesterBoxGetPoint</h2>
+<p>The custom <code>GetPoint</code> class will be used to communicate mouse location as
+<code>Point3d</code> data to the display conduit for drawing a preview of the preview. We
+want to show where the new location would end up.</p>
+<p>A <code>jesterBoxConduit</code> instance is passed to our <code>GetPoint</code> implementation when it
+is constructed. Our class needs to hold on to it, so during <code>OnMouseMove</code> the
+conduit can be updated.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;jesterBoxGetPoint.cs&quot;</span> /&gt;</span>
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode jesterBoxGetPoint.*&gt;&gt;=</div><div class="code"><pre><code>&lt;&lt;jesterBoxGetPoint imports&gt;&gt;
+
+<span class="hljs-keyword">namespace</span> <span class="hljs-title">jesterLiveCode</span> {
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title">jesterBoxGetPoint</span> : <span class="hljs-title">GetPoint</span>
+    {
+        jesterBoxConduit _conduit;
+
+        <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">jesterBoxGetPoint</span>(<span class="hljs-params">jesterBoxConduit conduit</span>)</span> {
+            _conduit = conduit;
+        }
+
+        &lt;&lt;jesterBoxGetPoint <span class="hljs-keyword">public</span> API&gt;&gt;
+    }
+}
+</code></pre>
+</div></div><p>Since we are inheriting <code>GetPoint</code> we need the <code>Rhino.Input.Custom</code> namespace.
+We need also access to <code>Point3d</code> from  the <code>Rhino.Geometry</code> namespace.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxGetPoint imports&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Input.Custom;
+<span class="hljs-keyword">using</span> Rhino.Geometry;
+</code></pre>
+</div></div><p>There are two parts to the public API for our <code>GetPoint</code> implementation:
+overriding the <code>OnMouseMove</code> method and providing a property
+<code>PotentialLocation</code>.</p>
+<p>Our <code>OnMouseMove</code> implementation is only going to harvest the <code>Point</code> property
+from the event argument passed to it when called. This we save to the display
+conduit for further usage.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxGetPoint public API&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">void</span> <span class="hljs-title">OnMouseMove</span>(<span class="hljs-params">GetPointMouseEventArgs e</span>)</span>
+{
+    _conduit.PotentialLocation = e.Point;
 }
 </code></pre>
 </div></div>

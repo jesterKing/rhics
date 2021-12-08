@@ -3,25 +3,36 @@
 Introduction into writing a Rhino plug-in. For this plug-in we are going to use
 Visual Studio Code and dotnet tools.
 
-## Creating the project
+## Setting up the project
 
 Since the plug-in is essentially a DLL, with the extension renamed to RHP, we
-create a classlib template project.
+create a .csproj file that contains the project description. We are going to add
+all necessary information to the rrespective fragments.
 
-``` PS
-PS> dotnet new classlib
+``` xml : <<jesterLiveCode project file.*>>= ./jesterLiveCode/jesterLiveCode.csproj
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<<jesterLiveCode project properties>>
+	</PropertyGroup>
+	<ItemGroup>
+		<<jesterLiveCode project package references>>
+	</ItemGroup>
+	<ItemGroup>
+		<<jesterLiveCode source files>>
+	</ItemGroup>
+</Project>
 ```
 
-To have the generated project compile as a Rhino plug-in, we need to make some
-changes to the project file. Rhino 7 targets itself .NET 4.8 framework, so we
-are going to do the same.
+To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.
 
-This also means that we need to disable the C# 10 features.
+``` xml : <<jesterLiveCode project properties>>=
+<TargetFramework>net4.8</TargetFramework>
+```
 
 We also need to tell the project that we want an RHP file, not a DLL. For this
 we are going to use the `<TargetExt>` tag.
 
-``` xml
+``` xml : <<jesterLiveCode project properties>>=+
 <TargetExt>.rhp</TargetExt>
 ```
 
@@ -30,7 +41,7 @@ disable default items, as well as disable automatic assembly information
 generation. This can be done with the tags `<EnableDefaultItems>` and
 `<GenerateAssemblyInfo>`.
 
-``` xml
+``` xml : <<jesterLiveCode project properties>>=+
 <EnableDefaultItems>False</EnableDefaultItems>
 <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
 ```
@@ -38,6 +49,9 @@ generation. This can be done with the tags `<EnableDefaultItems>` and
 To be able to use RhinoCommon SDK we need to add the RhinoCommon package
 reference from NuGet. The current version we are going to use is
 7.12.21313.6341.
+``` xml : <<jesterLiveCode project package references>>=
+<PackageReference Include="RhinoCommon" Version="7.12.21313.6341"/>
+```
 
 ## Creating the plug-in class
 
@@ -57,6 +71,13 @@ namespace jesterLiveCode {
         <<jesterLiveCode plug-in construction>>
     }
 }
+```
+
+The source file needs to be added to the project to have it compiled, since we
+are managing the project manually.
+
+``` xml : <<jesterLiveCode source files>>=
+<Compile Include="jesterLiveCodePlugin.cs" />
 ```
 
 Rhino plug-ins are going to be initialized by Rhino, and for plug-ins there
@@ -127,6 +148,12 @@ using Rhino.PlugIns;
 [assembly: AssemblyFileVersion("0.0.1.0")]
 ```
 
+Add the assembly information file to the project
+
+``` xml : <<jesterLiveCode source files>>=+
+<Compile Include="Properties/AssemblyInfo.cs" />
+```
+
 ## Creating a command
 
 A command in Rhino derives from `Rhino.Commands.Command`. There two mandatory
@@ -151,6 +178,10 @@ conduit called `jesterBoxConduit`.
 Apart from the necessary command overrides there will be some utilities
 implementated in this class that can be used for creating and visualizing our
 object. These will be provided in `<<jesterBox command utilities>>`.
+
+``` xml : <<jesterLiveCode source files>>=+
+<Compile Include="jesterBoxCommand.cs" />
+```
 
 ``` csharp : <<first command class.*>>= ./jesterLiveCode/jesterBoxCommand.cs
 <<first command usings>>
@@ -189,8 +220,8 @@ The main structure looks a bit like this:
 protected override Result RunCommand(RhinoDoc doc, RunMode mode)
 {
     <<add command options>>
-    <<get point>>
     <<set up jesterBox display conduit>>
+    <<get point>>
     <<handle get loop>>
     <<add the object>>
     return Result.Success;
@@ -213,6 +244,7 @@ using Rhino.Input.Custom;
 Now we are able to use all classes provided by the namespace `Rhino.Input.Custom`.
 
 ``` csharp : <<add command options>>=
+Point3d point = Point3d.Unset;
 int width = 10;
 int length = 10;
 int height = 10;
@@ -225,15 +257,18 @@ OptionInteger heightOption = new OptionInteger(height, 1, 50);
 ##### GetPoint instance
 
 As mention we want to add the box to a user picked position. For that we need
-the `GetPoint` class. And we can add the options to the instance of that class
-when we have one. It is also good to tell the user what is expected from them,
-so lets set the command-prompt to "Select a location". The user is supposed to
-press `Enter` when they are happy with the given settings. To this end we need
-to ensure that our `GetPoint` instance actually can accept nothing.
+the `GetPoint` class. For our project we implement a custom `GetPoint` class,
+`jesterBoxGetPoint`, which we will be using to handle interactive mouse
+movements and display some intermediate results while our command is still
+active. And we can add the options to the instance of that class when we have
+one. It is also good to tell the user what is expected from them, so lets set
+the command-prompt to "Select a location". The user is supposed to press `Enter`
+when they are happy with the given settings. To this end we need to ensure that
+our `jesterBoxGetPoint` instance actually can accept nothing.
 
 ``` csharp : <<get point>>=
-Point3d point = Point3d.Origin;
-GetPoint getPoint = new GetPoint();
+jesterBoxGetPoint getPoint = new jesterBoxGetPoint(conduit);
+point = conduit.Location = conduit.PotentialLocation;
 getPoint.AcceptNothing(true);
 getPoint.SetCommandPrompt("Pick a location, and enter when done");
 getPoint.AddOptionInteger("Width", ref widthOption);
@@ -319,7 +354,9 @@ for(;;)
 ##### Adding the object
 
 Once we get out of the loop and are still in the command we can add the object
-to the specifications given by the user on the command-line.
+to the specifications given by the user on the command-line. If no point was
+specified by the user when we get to this point we are going to use the
+`PotentialLocation` as known by the conduit.
 
 To add the object we use the `CreateJesterBox` method provided by `<<jesterBox
 command utilities>>`.
@@ -328,6 +365,9 @@ We also disable our conduit, so it doesn't get called all the time for nothing.
 
 ``` csharp : <<add the object>>=
 conduit.Enabled = false;
+if(!point.IsValid) {
+    point = conduit.PotentialLocation;
+}
 Brep boxBrep = CreateJesterBox(point, width, height, length);
 doc.Objects.AddBrep(boxBrep);
 doc.Views.Redraw();
@@ -366,6 +406,10 @@ bounding box and a draw method. For our command and display conduit we are going
 to draw in `DrawOverlay`. We also want to be able to pass on the data to be
 visualized, which we'll do with `<<jesterBoxConduit data access>>`.
 
+``` xml : <<jesterLiveCode source files>>=+
+<Compile Include="jesterBoxConduit.cs" />
+```
+
 ``` csharp : <<jesterBox display conduit.*>>= ./jesterLiveCode/jesterBoxConduit.cs
 <<jesterBox usings>>
 
@@ -399,6 +443,13 @@ public int Height { get; set; }
 public int Length { get; set; }
 ```
 
+Not only do we need the dimensions and location of the object to be added, we
+_also_ want to know the potential location of the object under the mouse cursor.
+
+``` csharp : <<jesterBoxConduit data access>>=+
+public Point3d PotentialLocation { get; set; }
+```
+
 Since we need `Point3d` we also need to bring in the `Rhino.Geometry` namespace.
 
 ``` csharp : <<jesterBox usings>>=+
@@ -416,9 +467,12 @@ protected override void CalculateBoundingBox(CalculateBoundingBoxEventArgs bbe)
 {
     base.CalculateBoundingBox(bbe);
     Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+    Brep previewBox = jesterBoxCommand.CreateJesterBox(PotentialLocation, Width, Height, Length);
     BoundingBox bb = box.GetBoundingBox(false);
+    BoundingBox previewBb = previewBox.GetBoundingBox(false);
 
     bbe.IncludeBoundingBox(bb);
+    bbe.IncludeBoundingBox(previewBb);
 }
 ```
 
@@ -428,7 +482,67 @@ protected override void CalculateBoundingBox(CalculateBoundingBoxEventArgs bbe)
 protected override void DrawOverlay(DrawEventArgs drawe)
 {
     base.DrawOverlay(drawe);
-    Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
-    drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+    if(Location.IsValid)
+    {
+        Brep box = jesterBoxCommand.CreateJesterBox(Location, Width, Height, Length);
+        drawe.Display.DrawBrepWires(box, System.Drawing.Color.Blue);
+    }
+    Brep previewBox = jesterBoxCommand.CreateJesterBox(PotentialLocation, Width, Height, Length);
+    drawe.Display.DrawBrepWires(previewBox, System.Drawing.Color.Gray);
 }
 ```
+
+## Implementing the custom GetPoint class jesterBoxGetPoint
+
+The custom `GetPoint` class will be used to communicate mouse location as
+`Point3d` data to the display conduit for drawing a preview of the preview. We
+want to show where the new location would end up.
+
+A `jesterBoxConduit` instance is passed to our `GetPoint` implementation when it
+is constructed. Our class needs to hold on to it, so during `OnMouseMove` the
+conduit can be updated.
+
+``` xml : <<jesterLiveCode source files>>=+
+<Compile Include="jesterBoxGetPoint.cs" />
+```
+
+``` csharp : <<jesterLiveCode jesterBoxGetPoint.*>>= ./jesterLiveCode/jesterBoxGetPoint.cs
+<<jesterBoxGetPoint imports>>
+
+namespace jesterLiveCode {
+    public class jesterBoxGetPoint : GetPoint
+    {
+        jesterBoxConduit _conduit;
+
+        public jesterBoxGetPoint(jesterBoxConduit conduit) {
+            _conduit = conduit;
+        }
+
+        <<jesterBoxGetPoint public API>>
+    }
+}
+```
+
+Since we are inheriting `GetPoint` we need the `Rhino.Input.Custom` namespace.
+We need also access to `Point3d` from  the `Rhino.Geometry` namespace.
+
+``` csharp : <<jesterBoxGetPoint imports>>=
+using Rhino.Input.Custom;
+using Rhino.Geometry;
+```
+
+There are two parts to the public API for our `GetPoint` implementation:
+overriding the `OnMouseMove` method and providing a property
+`PotentialLocation`.
+
+Our `OnMouseMove` implementation is only going to harvest the `Point` property
+from the event argument passed to it when called. This we save to the display
+conduit for further usage.
+
+``` csharp : <<jesterBoxGetPoint public API>>=
+protected override void OnMouseMove(GetPointMouseEventArgs e)
+{
+    _conduit.PotentialLocation = e.Point;
+}
+```
+

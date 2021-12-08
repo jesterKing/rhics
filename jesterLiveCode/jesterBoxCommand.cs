@@ -15,6 +15,7 @@ namespace jesterLiveCode
         
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
+            Point3d point = Point3d.Unset;
             int width = 10;
             int length = 10;
             int height = 10;
@@ -22,13 +23,6 @@ namespace jesterLiveCode
             OptionInteger widthOption = new OptionInteger(width, 1, 50);
             OptionInteger lengthOption = new OptionInteger(length, 1, 50);
             OptionInteger heightOption = new OptionInteger(height, 1, 50);
-            Point3d point = Point3d.Origin;
-            GetPoint getPoint = new GetPoint();
-            getPoint.AcceptNothing(true);
-            getPoint.SetCommandPrompt("Pick a location, and enter when done");
-            getPoint.AddOptionInteger("Width", ref widthOption);
-            getPoint.AddOptionInteger("Length", ref lengthOption);
-            getPoint.AddOptionInteger("Height", ref heightOption);
             jesterBoxConduit conduit = new jesterBoxConduit();
             
             conduit.Location = point;
@@ -37,6 +31,13 @@ namespace jesterLiveCode
             conduit.Length = length;
             
             conduit.Enabled = true;
+            jesterBoxGetPoint getPoint = new jesterBoxGetPoint(conduit);
+            point = conduit.Location = conduit.PotentialLocation;
+            getPoint.AcceptNothing(true);
+            getPoint.SetCommandPrompt("Pick a location, and enter when done");
+            getPoint.AddOptionInteger("Width", ref widthOption);
+            getPoint.AddOptionInteger("Length", ref lengthOption);
+            getPoint.AddOptionInteger("Height", ref heightOption);
             for(;;)
             {
                 GetResult result = getPoint.Get();
@@ -76,6 +77,9 @@ namespace jesterLiveCode
                 }
             }
             conduit.Enabled = false;
+            if(!point.IsValid) {
+                point = conduit.PotentialLocation;
+            }
             Brep boxBrep = CreateJesterBox(point, width, height, length);
             doc.Objects.AddBrep(boxBrep);
             doc.Views.Redraw();
