@@ -8,7 +8,7 @@
             "name": "Start Rhino for Debugging",
             "type": "clr",
             "request": "launch",
-            //"preLaunchTask": "build",
+            "preLaunchTask": "build",
             "program": "C:/Program Files/Rhino 7/System/Rhino.exe",
             "args": ["/nosplash"],
             "cwd": "C:/Program Files/Rhino 7/System",
