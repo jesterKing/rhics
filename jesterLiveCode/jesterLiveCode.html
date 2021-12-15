@@ -23,7 +23,7 @@ all necessary information to the rrespective fragments.</p>
 <span class="hljs-tag">&lt;/<span class="hljs-name">Project</span>&gt;</span>
 </code></pre>
 </div></div><p>To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetFramework</span>&gt;</span>net4.8<span class="hljs-tag">&lt;/<span class="hljs-name">TargetFramework</span>&gt;</span>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetFramework</span>&gt;</span>net48<span class="hljs-tag">&lt;/<span class="hljs-name">TargetFramework</span>&gt;</span>
 </code></pre>
 </div></div><p>We also need to tell the project that we want an RHP file, not a DLL. For this
 we are going to use the <code>&lt;TargetExt&gt;</code> tag.</p>
@@ -40,6 +40,12 @@ generation. This can be done with the tags <code>&lt;EnableDefaultItems&gt;</cod
 reference from NuGet. The current version we are going to use is
 7.12.21313.6341.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project package references&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;RhinoCommon&quot;</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">&quot;7.12.21313.6341&quot;</span>/&gt;</span>
+</code></pre>
+</div></div><p>To be able to debug using the Windows PDB format, this needs to be configured in
+the project settings. We want to use the <code>full</code> format for PDB files, not the
+<code>portable</code> format. Furthermore we want to enable debug symbols at all times.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">DebugType</span>&gt;</span>full<span class="hljs-tag">&lt;/<span class="hljs-name">DebugType</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">DebugSymbols</span>&gt;</span>true<span class="hljs-tag">&lt;/<span class="hljs-name">DebugSymbols</span>&gt;</span>
 </code></pre>
 </div></div><h2>Creating the plug-in class</h2>
 <p>A Rhino plug-in derives from one of the plug-in classes that is provided by the
@@ -160,6 +166,22 @@ object. These will be provided in <code>&lt;&lt;jesterBox command utilities&gt;&
 will essentially be the name of the command as you type it into the Rhino
 command-line.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> EnglishName =&gt; <span class="hljs-string">&quot;jesterBox&quot;</span>;
+</code></pre>
+</div></div><p>We also want to try localize our plug-in. To that end we need to override the
+<code>LocalName</code> property. Note that we do need access to the <code>Localization</code> class of
+the <code>Rhino.UI</code> namespace.</p>
+<p>We need the assembly object our plug-in to pass on to the localization system.
+For this we also need access to the <code>System.Reflection</code> assembly.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> LocalName {
+    <span class="hljs-keyword">get</span> {
+        Assembly ass = Assembly.GetExecutingAssembly();
+        <span class="hljs-keyword">return</span> Localization.LocalizeString(<span class="hljs-string">&quot;jesterBox&quot;</span>, ass, <span class="hljs-number">1</span>);
+    }
+}
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> System.Reflection;
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;first command usings&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.UI;
 </code></pre>
 </div></div><p>We also need to override the method <code>RunCommand</code>, which is going to be the
 actual meat of the command. Here the driving logic of the command will live. We
@@ -420,6 +442,19 @@ conduit for further usage.</p>
 {
     _conduit.PotentialLocation = e.Point;
 }
+</code></pre>
+</div></div><h2>Localizing the command</h2>
+<p>Earlier we used <code>Localization.LocalizeString</code> to set up our code for localized versions of the command <code>jesterBox</code>. We need now the localization files that are formatted with XML. The files should be located next to the RHP file our project generates.</p>
+<p>For this project lets try to localize some strings to Finnish and Dutch. For now we are going to assume that correct language identifier has been set with Python in a separate script. For Finnish the LCID is 1035 and for Dutch it is 1043.</p>
+<h3>Finnish localization</h3>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">EmbeddedResource</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;fi-fijesterLiveCode.xml&quot;</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">Link</span>&gt;</span>Localization\fi-fijesterLiveCode.xml<span class="hljs-tag">&lt;/<span class="hljs-name">Link</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">EmbeddedResource</span>&gt;</span>
+</code></pre>
+</div></div><div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBox finnish localization.*&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-meta">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">RMA_LOCALIZATION</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">RMASTRING</span> <span class="hljs-attr">type</span>=<span class="hljs-string">&quot;string&quot;</span> <span class="hljs-attr">English</span>=<span class="hljs-string">&quot;jesterBox[[1]]&quot;</span> <span class="hljs-attr">Localized</span>=<span class="hljs-string">&quot;jesterLaatikko[[1]]&quot;</span> <span class="hljs-attr">file_name</span>=<span class="hljs-string">&quot;jesterBoxCommand.cs&quot;</span> /&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">RMA_LOCALIZATION</span>&gt;</span>
 </code></pre>
 </div></div>
 	</body>

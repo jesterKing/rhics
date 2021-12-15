@@ -1,6 +1,10 @@
 using Rhino;
 using Rhino.Commands;
 
+using System.Reflection;
+
+using Rhino.UI;
+
 using Rhino.Input;
 using Rhino.Input.Custom;
 
@@ -12,6 +16,13 @@ namespace jesterLiveCode
     public class jesterBoxCommand: Command
     {
         public override string EnglishName => "jesterBox";
+        
+        public override string LocalName {
+            get {
+                Assembly ass = Assembly.GetExecutingAssembly();
+                return Localization.LocalizeString("jesterBox", ass, 1);
+            }
+        }
         
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {

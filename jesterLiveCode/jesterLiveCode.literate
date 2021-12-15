@@ -26,7 +26,7 @@ all necessary information to the rrespective fragments.
 To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.
 
 ``` xml : <<jesterLiveCode project properties>>=
-<TargetFramework>net4.8</TargetFramework>
+<TargetFramework>net48</TargetFramework>
 ```
 
 We also need to tell the project that we want an RHP file, not a DLL. For this
@@ -51,6 +51,15 @@ reference from NuGet. The current version we are going to use is
 7.12.21313.6341.
 ``` xml : <<jesterLiveCode project package references>>=
 <PackageReference Include="RhinoCommon" Version="7.12.21313.6341"/>
+```
+
+To be able to debug using the Windows PDB format, this needs to be configured in
+the project settings. We want to use the `full` format for PDB files, not the
+`portable` format. Furthermore we want to enable debug symbols at all times.
+
+``` xml : <<jesterLiveCode project properties>>=+
+<DebugType>full</DebugType>
+<DebugSymbols>true</DebugSymbols>
 ```
 
 ## Creating the plug-in class
@@ -204,6 +213,30 @@ command-line.
 
 ``` csharp : <<first command overrides>>=
 public override string EnglishName => "jesterBox";
+```
+
+We also want to try localize our plug-in. To that end we need to override the
+`LocalName` property. Note that we do need access to the `Localization` class of
+the `Rhino.UI` namespace.
+
+We need the assembly object our plug-in to pass on to the localization system.
+For this we also need access to the `System.Reflection` assembly.
+
+``` csharp : <<first command overrides>>=+
+public override string LocalName {
+    get {
+        Assembly ass = Assembly.GetExecutingAssembly();
+        return Localization.LocalizeString("jesterBox", ass, 1);
+    }
+}
+```
+
+``` csharp : <<first command usings>>=+
+using System.Reflection;
+```
+
+``` csharp : <<first command usings>>=+
+using Rhino.UI;
 ```
 
 We also need to override the method `RunCommand`, which is going to be the
@@ -546,3 +579,22 @@ protected override void OnMouseMove(GetPointMouseEventArgs e)
 }
 ```
 
+## Localizing the command
+
+Earlier we used `Localization.LocalizeString` to set up our code for localized versions of the command `jesterBox`. We need now the localization files that are formatted with XML. The files should be located next to the RHP file our project generates.
+
+For this project lets try to localize some strings to Finnish and Dutch. For now we are going to assume that correct language identifier has been set with Python in a separate script. For Finnish the LCID is 1035 and for Dutch it is 1043.
+
+### Finnish localization
+
+``` xml : <<jesterLiveCode source files>>=+
+<EmbeddedResource Include="fi-fijesterLiveCode.xml">
+    <Link>Localization\fi-fijesterLiveCode.xml</Link>
+</EmbeddedResource>
+```
+``` xml : <<jesterBox finnish localization.*>>= ./jesterLiveCode/fi-fijesterLiveCode.xml
+<?xml version="1.0" encoding="utf-8"?>
+<RMA_LOCALIZATION>
+  <RMASTRING type="string" English="jesterBox[[1]]" Localized="jesterLaatikko[[1]]" file_name="jesterBoxCommand.cs" />
+</RMA_LOCALIZATION>
+```

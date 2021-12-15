@@ -1,11 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net4.8</TargetFramework>
+		<TargetFramework>net48</TargetFramework>
 		
 		<TargetExt>.rhp</TargetExt>
 		
 		<EnableDefaultItems>False</EnableDefaultItems>
 		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+		
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="RhinoCommon" Version="7.12.21313.6341"/>
@@ -20,5 +23,9 @@
 		<Compile Include="jesterBoxConduit.cs" />
 		
 		<Compile Include="jesterBoxGetPoint.cs" />
+		
+		<EmbeddedResource Include="fi-fijesterLiveCode.xml">
+		    <Link>Localization\fi-fijesterLiveCode.xml</Link>
+		</EmbeddedResource>
 	</ItemGroup>
 </Project>
