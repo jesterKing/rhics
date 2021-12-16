@@ -1,13 +1,30 @@
-# Creating a Rhino plug-in
+# Creating Rhino plug-ins
 
-Introduction into writing a Rhino plug-in. For this plug-in we are going to use
-Visual Studio Code and dotnet tools.
+_written by Nathan 'jesterKing' Letwory_
+
+This book is an introduction into writing a Rhino plug-in. For this plug-in we
+are going to use Visual Studio Code and dotnet tools. Throughout the book we
+will touch upon as many areas of Rhino plug-in development as we can fit:
+commands, visualization, custom objects, user data, localization and so on.
+
+This book is made largely during the live coding stream sessions on the playlist
+[Live Coding
+Rhino](https://www.youtube.com/playlist?list=PLzNvJPtmmAMb507xWcd77xnicgE0UQYnE).
+Some work is done off-screen, mainly improving on the text and structure of the
+book and sometimes smaller fixes to code. In most cases such code fixes are
+later on handled in the live streams.
+
+The project is implemented using the literate programming paradigm utilizing the
+[literate
+programming](https://marketplace.visualstudio.com/items?itemName=jesterking.literate)
+extension for Visual Studio Code. After reading this book the reader will have
+also read all the source code for the complete project.
 
 ## Setting up the project
 
-Since the plug-in is essentially a DLL, with the extension renamed to RHP, we
-create a .csproj file that contains the project description. We are going to add
-all necessary information to the rrespective fragments.
+Rhino plug-ins are essentially a DLL with the extension renamed to RHP. To that
+end we create a .csproj file that defines the project and its properties
+contains the project description.
 
 ``` xml : <<jesterLiveCode project file.*>>= ./jesterLiveCode/jesterLiveCode.csproj
 <Project Sdk="Microsoft.NET.Sdk">
@@ -23,14 +40,18 @@ all necessary information to the rrespective fragments.
 </Project>
 ```
 
-To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.
+By default a dotnet project will be compiled against a .NET core framework, but
+Rhino 7 currently uses .NET Framework 4.8. To have the project compile as a
+Rhino plug-in, we need to target the .NET 4.8 framework. A future version of
+Rhino will be using more modern frameworks, but for now we will stick with what
+Rhino uses.
 
 ``` xml : <<jesterLiveCode project properties>>=
 <TargetFramework>net48</TargetFramework>
 ```
 
-We also need to tell the project that we want an RHP file, not a DLL. For this
-we are going to use the `<TargetExt>` tag.
+We need to tell the project that we want an RHP file, not a DLL. For this we are
+going to use the `<TargetExt>` tag.
 
 ``` xml : <<jesterLiveCode project properties>>=+
 <TargetExt>.rhp</TargetExt>
@@ -39,7 +60,9 @@ we are going to use the `<TargetExt>` tag.
 We also want to control the project management manually. This means we need to
 disable default items, as well as disable automatic assembly information
 generation. This can be done with the tags `<EnableDefaultItems>` and
-`<GenerateAssemblyInfo>`.
+`<GenerateAssemblyInfo>`. With these settings in place we can now control what
+files get compiled and where the auxiliary plug-in information is held. All
+files we care about will be added to `<<jesterLiveCode source files>>`.
 
 ``` xml : <<jesterLiveCode project properties>>=+
 <EnableDefaultItems>False</EnableDefaultItems>
@@ -48,7 +71,9 @@ generation. This can be done with the tags `<EnableDefaultItems>` and
 
 To be able to use RhinoCommon SDK we need to add the RhinoCommon package
 reference from NuGet. The current version we are going to use is
-7.12.21313.6341.
+7.12.21313.6341. This means that the minimum required version of Rhino for this
+plug-in is Rhino 7.12.
+
 ``` xml : <<jesterLiveCode project package references>>=
 <PackageReference Include="RhinoCommon" Version="7.12.21313.6341"/>
 ```
@@ -66,8 +91,14 @@ the project settings. We want to use the `full` format for PDB files, not the
 
 A Rhino plug-in derives from one of the plug-in classes that is provided by the
 `Rhino.PlugIns` namespace. There are several available, for import, export, and
-so. But our case we are going to do just a simple utility plug-in. Such plug-in
-derives from `Rhino.PlugIns.PlugIn`.
+so. But in our case we are going to do just a simple utility plug-in. Such a
+plug-in derives from `Rhino.PlugIns.PlugIn`, the base class for all plug-in
+types.
+
+Rhino initializes plug-ins slightly differently depending on what class is used
+to derive from. For instance a `Rhino.PlugIns.RenderPlugin` implementation in an
+RHP will cause Rhino to automatically look for and register implementations of
+`RenderContent` types.
 
 ``` csharp : <<jesterLiveCode plug-in.*>>= ./jesterLiveCode/jesterLiveCodePlugin.cs
 using Rhino;
@@ -90,8 +121,8 @@ are managing the project manually.
 ```
 
 Rhino plug-ins are going to be initialized by Rhino, and for plug-ins there
-should always be only one instance. So a singleton pattern here is going to be
-needed.
+should always be only one instance. That means a singleton pattern here is going
+to be needed.
 
 ``` csharp : <<jesterLiveCode plug-in construction>>=
 public jesterLiveCodePlugin()
@@ -107,61 +138,99 @@ public static jesterLiveCodePlugin Instance { get; private set; }
 
 ## Setting up the assembly information
 
-For to be able to load the plug-in properly the correct assembly attributes need
-to be present. The `PlugInDescription` attribute needs to be set with several
-different types. Also the assembly needs to have a unique GUID. And finally
-there needs to be file versioning.
+For Rhino to be able to load the plug-in properly the correct assembly
+attributes need to be present. The `PlugInDescription` attribute needs to be set
+with several different types. They need to be present, but information can be
+filled out as available or deemed necessary to divulge. Also the assembly needs
+to have a unique GUID. Finally there needs to be file versioning.
 
 ``` csharp : <<jesterLiveCode assembly info.*>>= ./jesterLiveCode/Properties/AssemblyInfo.cs
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Rhino.PlugIns;
+
+<<jesterLiveCode plugin description>>
+<<jesterLiveCode assembly information>>
+<<jesterLiveCode plugin guid>>
+<<jesterLiveCode plugin versioning>>
+```
+
+Add the assembly information source file to the project.
+
+``` xml : <<jesterLiveCode source files>>=+
+<Compile Include="Properties/AssemblyInfo.cs" />
+```
+
+### Plug-in description and contact information
+
+The plug-in description attributes are used to show the given information in the
+Rhino plug-in manager. Additionally in some cases Rhino may show users a dialog
+with the contact information from the plug-in description attributes, most
+notably when plug-in initialization fails. That is provided as a mechanism to
+users to report problems and find out about workarounds and fixes.
+
+At minimum an email address and an update URL would be good to provide. Any
+other information that give users enough information for contact and who is
+responsible for the pluge-in would also be useful.
+
+``` csharp : <<jesterLiveCode plugin description>>=
 [assembly: PlugInDescription(DescriptionType.Address, "Turku")]
 [assembly: PlugInDescription(DescriptionType.Country, "Finland")]
 [assembly: PlugInDescription(DescriptionType.Email, "jesterking@letwory.net")]
 [assembly: PlugInDescription(DescriptionType.Phone, "-")]
 [assembly: PlugInDescription(DescriptionType.Fax, "-")]
 [assembly: PlugInDescription(DescriptionType.Organization, "Letwory Interactive Oy")]
-[assembly: PlugInDescription(DescriptionType.UpdateUrl, "-")]
+[assembly: PlugInDescription(DescriptionType.UpdateUrl, "https://github.com/jesterKing/rhics")]
 [assembly: PlugInDescription(DescriptionType.WebSite, "https://www.letworyinteractive.com")]
+```
 
+### Assembly information
 
+The assembly information attributes are visible in Windows through the file
+explorer. File details will allow users to investigate the RHP file before
+loading it into Rhino should they have acquired an archive outside of the
+package manager mechanism.
+
+#### General information
+
+``` csharp : <<jesterLiveCode assembly information>>=
 [assembly: AssemblyTitle("jesterLiveCode")] // Plug-In title is extracted from this
 [assembly: AssemblyDescription("A plug-in showing the ropes of writing code for Rhino.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Letwory Interactive Oy")]
-[assembly: AssemblyProduct("")]
+[assembly: AssemblyProduct("jesterLiveCode")]
 [assembly: AssemblyCopyright("Copyright ©  2021")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-
-// Setting ComVisible to false makes the types in this assembly not visible
-// to COM components.  If you need to access a type in this assembly from
-// COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
+```
 
-// The following GUID is for the ID of the typelib if this project is exposed to COM
+#### Plug-in ID
+
+As part of the assembly information a GUID is specified as well. Here great care
+should be taken to ensure it is actually unique and not one copied from sample
+code, like the one from this book. Conflicting GUIDs will cause Rhino to
+complain about duplicate IDs and further ignore the plug-in during attempts to
+load it. In other words the assembly GUID is _also_ the Rhino plug-in ID.
+
+``` charp : <<jesterLiveCode plugin guid>>=
 [assembly: Guid("0fda72f0-ccd3-4b75-8896-f495ae82fc18")]
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Build and Revision Numbers
-// by using the '*' as shown below:
-// [assembly: AssemblyVersion("1.0.*")]
+```
+
+#### Plug-in versioning
+
+It is best to follow the versioning schema as used by Microsoft using four
+digits seperated by dots. This can be a combination of major version, minor
+version, build number, revision. The most important aspect here is to keep
+consistent so that versions and releases can be tracked properly, especially
+with regard to bug reports, but also for roadmapping future development.
+
+``` csharp : <<jesterLiveCode plugin versioning>>=
 [assembly: AssemblyVersion("0.0.1.0")]
 [assembly: AssemblyFileVersion("0.0.1.0")]
 ```
 
-Add the assembly information file to the project
-
-``` xml : <<jesterLiveCode source files>>=+
-<Compile Include="Properties/AssemblyInfo.cs" />
-```
 
 ## Creating a command
 
@@ -207,6 +276,8 @@ namespace jesterLiveCode
 
 ### The mandatory overrides for a Command class
 
+#### English name of the command
+
 To get a minimal working `Command` the property `EnglishName`. This property
 will essentially be the name of the command as you type it into the Rhino
 command-line.
@@ -215,12 +286,17 @@ command-line.
 public override string EnglishName => "jesterBox";
 ```
 
-We also want to try localize our plug-in. To that end we need to override the
-`LocalName` property. Note that we do need access to the `Localization` class of
-the `Rhino.UI` namespace.
+#### Local name of the command
 
-We need the assembly object our plug-in to pass on to the localization system.
-For this we also need access to the `System.Reflection` assembly.
+We are localizing our plug-in. To that end we need to override the `LocalName`
+property. Note that we do need access to the `Localization` class of the
+`Rhino.UI` namespace to get access to the `LocalizeString` method.
+`LocalizeString` is going to be the main work horse for our localization
+efforts.
+
+We need the assembly object of our plug-in to pass on to the localization
+system. The `System.Reflection` namespace will give us the tools we need for
+that.
 
 ``` csharp : <<first command overrides>>=+
 public override string LocalName {
@@ -246,8 +322,23 @@ the user has picked a point.
 
 #### RunCommand implementation
 
-The main structure looks a bit like this:
+The center of our command is the implementation of `RunCommand`. This method
+gets run when the command is used on the Rhino command-line, through buttons on
+toolbars or entries in menus, and through scripting.
 
+Upon execution the command is given a reference to the document for which it is
+being run as well as the type of interaction with the command. This is a way to
+distinguish between command-line usage and potential GUI usage. It is customary
+for commands to implement the two workflows where it makes sense. Command-line
+usage means no dialogs are going to be popped up to request input from the user.
+This is useful especially for usage in scripts and automation, but users may
+prefer using command-line based interaction only. For the interactive workflow
+commands have the opportunity to use a custom GUI to allow the user to interact
+with the command. Data could be presented in perhaps a more clear layout. Such
+GUI generally is modal and needs to be closed either through acceptance or
+cancellation.
+
+For `jesterBox` we are going to implement only command-line interaction.
 
 ``` csharp : <<first command overrides>>=+
 protected override Result RunCommand(RhinoDoc doc, RunMode mode)
@@ -511,6 +602,15 @@ protected override void CalculateBoundingBox(CalculateBoundingBoxEventArgs bbe)
 
 ### Drawing the temporary geometry
 
+The display conduit will be drawing not just one preview, but also a second
+preview based on the mouse cursor movements. The first, and main, preview of the
+object will be drawn with the dimensions entered on the command-line at the
+location specified by user clicks in the world.
+
+However, when the user moves the mouse cursor a secondary preview will be shown
+at the world location determined by the mouse location. The secondary preview
+uses a different color for the drawing.
+
 ``` csharp : <<jesterBoxConduit draw overlay>>=
 protected override void DrawOverlay(DrawEventArgs drawe)
 {
@@ -564,9 +664,9 @@ using Rhino.Input.Custom;
 using Rhino.Geometry;
 ```
 
-There are two parts to the public API for our `GetPoint` implementation:
-overriding the `OnMouseMove` method and providing a property
-`PotentialLocation`.
+There are two parts that work together through our `GetPoint` implementation:
+overriding the `OnMouseMove` method and providing a property `PotentialLocation`
+on the conduit. The latter we introduced in `<<jesterBoxConduit data access>>`.
 
 Our `OnMouseMove` implementation is only going to harvest the `Point` property
 from the event argument passed to it when called. This we save to the display
@@ -578,6 +678,10 @@ protected override void OnMouseMove(GetPointMouseEventArgs e)
     _conduit.PotentialLocation = e.Point;
 }
 ```
+
+This mechanism ensures we have always the current world location based on the
+mouse cursor movements available in the display conduit. With this information
+we can draw a secondary preview of the object to be added by the command.
 
 ## Localizing the command
 

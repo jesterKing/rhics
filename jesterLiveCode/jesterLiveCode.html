@@ -3,13 +3,27 @@
 		<link rel="stylesheet" type="text/css" href="./style.css">
 	</head>
 	<body>
-	<h1>Creating a Rhino plug-in</h1>
-<p>Introduction into writing a Rhino plug-in. For this plug-in we are going to use
-Visual Studio Code and dotnet tools.</p>
+	<h1>Creating Rhino plug-ins</h1>
+<p><em>written by Nathan 'jesterKing' Letwory</em></p>
+<p>This book is an introduction into writing a Rhino plug-in. For this plug-in we
+are going to use Visual Studio Code and dotnet tools. Throughout the book we
+will touch upon as many areas of Rhino plug-in development as we can fit:
+commands, visualization, custom objects, user data, localization and so on.</p>
+<p>This book is made largely during the live coding stream sessions on the playlist
+<a href="https://www.youtube.com/playlist?list=PLzNvJPtmmAMb507xWcd77xnicgE0UQYnE">Live Coding
+Rhino</a>.
+Some work is done off-screen, mainly improving on the text and structure of the
+book and sometimes smaller fixes to code. In most cases such code fixes are
+later on handled in the live streams.</p>
+<p>The project is implemented using the literate programming paradigm utilizing the
+<a href="https://marketplace.visualstudio.com/items?itemName=jesterking.literate">literate
+programming</a>
+extension for Visual Studio Code. After reading this book the reader will have
+also read all the source code for the complete project.</p>
 <h2>Setting up the project</h2>
-<p>Since the plug-in is essentially a DLL, with the extension renamed to RHP, we
-create a .csproj file that contains the project description. We are going to add
-all necessary information to the rrespective fragments.</p>
+<p>Rhino plug-ins are essentially a DLL with the extension renamed to RHP. To that
+end we create a .csproj file that defines the project and its properties
+contains the project description.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project file.*&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Project</span> <span class="hljs-attr">Sdk</span>=<span class="hljs-string">&quot;Microsoft.NET.Sdk&quot;</span>&gt;</span>
 	<span class="hljs-tag">&lt;<span class="hljs-name">PropertyGroup</span>&gt;</span>
 		&lt;<span class="hljs-tag">&lt;<span class="hljs-name">jesterLiveCode</span> <span class="hljs-attr">project</span> <span class="hljs-attr">properties</span>&gt;</span>&gt;
@@ -22,23 +36,30 @@ all necessary information to the rrespective fragments.</p>
 	<span class="hljs-tag">&lt;/<span class="hljs-name">ItemGroup</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">Project</span>&gt;</span>
 </code></pre>
-</div></div><p>To have the project compile as a Rhino plug-in, we need to target the .NET 4.8 framework.</p>
+</div></div><p>By default a dotnet project will be compiled against a .NET core framework, but
+Rhino 7 currently uses .NET Framework 4.8. To have the project compile as a
+Rhino plug-in, we need to target the .NET 4.8 framework. A future version of
+Rhino will be using more modern frameworks, but for now we will stick with what
+Rhino uses.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetFramework</span>&gt;</span>net48<span class="hljs-tag">&lt;/<span class="hljs-name">TargetFramework</span>&gt;</span>
 </code></pre>
-</div></div><p>We also need to tell the project that we want an RHP file, not a DLL. For this
-we are going to use the <code>&lt;TargetExt&gt;</code> tag.</p>
+</div></div><p>We need to tell the project that we want an RHP file, not a DLL. For this we are
+going to use the <code>&lt;TargetExt&gt;</code> tag.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">TargetExt</span>&gt;</span>.rhp<span class="hljs-tag">&lt;/<span class="hljs-name">TargetExt</span>&gt;</span>
 </code></pre>
 </div></div><p>We also want to control the project management manually. This means we need to
 disable default items, as well as disable automatic assembly information
 generation. This can be done with the tags <code>&lt;EnableDefaultItems&gt;</code> and
-<code>&lt;GenerateAssemblyInfo&gt;</code>.</p>
+<code>&lt;GenerateAssemblyInfo&gt;</code>. With these settings in place we can now control what
+files get compiled and where the auxiliary plug-in information is held. All
+files we care about will be added to <code>&lt;&lt;jesterLiveCode source files&gt;&gt;</code>.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project properties&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">EnableDefaultItems</span>&gt;</span>False<span class="hljs-tag">&lt;/<span class="hljs-name">EnableDefaultItems</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">GenerateAssemblyInfo</span>&gt;</span>False<span class="hljs-tag">&lt;/<span class="hljs-name">GenerateAssemblyInfo</span>&gt;</span>
 </code></pre>
 </div></div><p>To be able to use RhinoCommon SDK we need to add the RhinoCommon package
 reference from NuGet. The current version we are going to use is
-7.12.21313.6341.</p>
+7.12.21313.6341. This means that the minimum required version of Rhino for this
+plug-in is Rhino 7.12.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode project package references&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">PackageReference</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;RhinoCommon&quot;</span> <span class="hljs-attr">Version</span>=<span class="hljs-string">&quot;7.12.21313.6341&quot;</span>/&gt;</span>
 </code></pre>
 </div></div><p>To be able to debug using the Windows PDB format, this needs to be configured in
@@ -50,8 +71,13 @@ the project settings. We want to use the <code>full</code> format for PDB files,
 </div></div><h2>Creating the plug-in class</h2>
 <p>A Rhino plug-in derives from one of the plug-in classes that is provided by the
 <code>Rhino.PlugIns</code> namespace. There are several available, for import, export, and
-so. But our case we are going to do just a simple utility plug-in. Such plug-in
-derives from <code>Rhino.PlugIns.PlugIn</code>.</p>
+so. But in our case we are going to do just a simple utility plug-in. Such a
+plug-in derives from <code>Rhino.PlugIns.PlugIn</code>, the base class for all plug-in
+types.</p>
+<p>Rhino initializes plug-ins slightly differently depending on what class is used
+to derive from. For instance a <code>Rhino.PlugIns.RenderPlugin</code> implementation in an
+RHP will cause Rhino to automatically look for and register implementations of
+<code>RenderContent</code> types.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode plug-in.*&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino;
 <span class="hljs-keyword">using</span> Rhino.PlugIns;
 
@@ -68,8 +94,8 @@ are managing the project manually.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;jesterLiveCodePlugin.cs&quot;</span> /&gt;</span>
 </code></pre>
 </div></div><p>Rhino plug-ins are going to be initialized by Rhino, and for plug-ins there
-should always be only one instance. So a singleton pattern here is going to be
-needed.</p>
+should always be only one instance. That means a singleton pattern here is going
+to be needed.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode plug-in construction&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">jesterLiveCodePlugin</span>(<span class="hljs-params"></span>)</span>
 {
     <span class="hljs-keyword">if</span>(Instance == <span class="hljs-literal">null</span>)
@@ -81,55 +107,74 @@ needed.</p>
 <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> jesterLiveCodePlugin Instance { <span class="hljs-keyword">get</span>; <span class="hljs-keyword">private</span> <span class="hljs-keyword">set</span>; }
 </code></pre>
 </div></div><h2>Setting up the assembly information</h2>
-<p>For to be able to load the plug-in properly the correct assembly attributes need
-to be present. The <code>PlugInDescription</code> attribute needs to be set with several
-different types. Also the assembly needs to have a unique GUID. And finally
-there needs to be file versioning.</p>
+<p>For Rhino to be able to load the plug-in properly the correct assembly
+attributes need to be present. The <code>PlugInDescription</code> attribute needs to be set
+with several different types. They need to be present, but information can be
+filled out as available or deemed necessary to divulge. Also the assembly needs
+to have a unique GUID. Finally there needs to be file versioning.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode assembly info.*&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> System.Reflection;
 <span class="hljs-keyword">using</span> System.Runtime.CompilerServices;
 <span class="hljs-keyword">using</span> System.Runtime.InteropServices;
 <span class="hljs-keyword">using</span> Rhino.PlugIns;
-[<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Address, <span class="hljs-string">&quot;Turku&quot;</span>)</span>]
+
+&lt;&lt;jesterLiveCode plugin description&gt;&gt;
+&lt;&lt;jesterLiveCode assembly information&gt;&gt;
+&lt;&lt;jesterLiveCode plugin guid&gt;&gt;
+&lt;&lt;jesterLiveCode plugin versioning&gt;&gt;
+</code></pre>
+</div></div><p>Add the assembly information source file to the project.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;Properties/AssemblyInfo.cs&quot;</span> /&gt;</span>
+</code></pre>
+</div></div><h3>Plug-in description and contact information</h3>
+<p>The plug-in description attributes are used to show the given information in the
+Rhino plug-in manager. Additionally in some cases Rhino may show users a dialog
+with the contact information from the plug-in description attributes, most
+notably when plug-in initialization fails. That is provided as a mechanism to
+users to report problems and find out about workarounds and fixes.</p>
+<p>At minimum an email address and an update URL would be good to provide. Any
+other information that give users enough information for contact and who is
+responsible for the pluge-in would also be useful.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode plugin description&gt;&gt;=</div><div class="code"><pre><code>[<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Address, <span class="hljs-string">&quot;Turku&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Country, <span class="hljs-string">&quot;Finland&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Email, <span class="hljs-string">&quot;jesterking@letwory.net&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Phone, <span class="hljs-string">&quot;-&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Fax, <span class="hljs-string">&quot;-&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.Organization, <span class="hljs-string">&quot;Letwory Interactive Oy&quot;</span>)</span>]
-[<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.UpdateUrl, <span class="hljs-string">&quot;-&quot;</span>)</span>]
+[<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.UpdateUrl, <span class="hljs-string">&quot;https://github.com/jesterKing/rhics&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: PlugInDescription(DescriptionType.WebSite, <span class="hljs-string">&quot;https://www.letworyinteractive.com&quot;</span>)</span>]
-
-
-[<span class="hljs-meta">assembly: AssemblyTitle(<span class="hljs-string">&quot;jesterLiveCode&quot;</span>)</span>] <span class="hljs-comment">// Plug-In title is extracted from this</span>
+</code></pre>
+</div></div><h3>Assembly information</h3>
+<p>The assembly information attributes are visible in Windows through the file
+explorer. File details will allow users to investigate the RHP file before
+loading it into Rhino should they have acquired an archive outside of the
+package manager mechanism.</p>
+<h4>General information</h4>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode assembly information&gt;&gt;=</div><div class="code"><pre><code>[<span class="hljs-meta">assembly: AssemblyTitle(<span class="hljs-string">&quot;jesterLiveCode&quot;</span>)</span>] <span class="hljs-comment">// Plug-In title is extracted from this</span>
 [<span class="hljs-meta">assembly: AssemblyDescription(<span class="hljs-string">&quot;A plug-in showing the ropes of writing code for Rhino.&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyConfiguration(<span class="hljs-string">&quot;&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyCompany(<span class="hljs-string">&quot;Letwory Interactive Oy&quot;</span>)</span>]
-[<span class="hljs-meta">assembly: AssemblyProduct(<span class="hljs-string">&quot;&quot;</span>)</span>]
+[<span class="hljs-meta">assembly: AssemblyProduct(<span class="hljs-string">&quot;jesterLiveCode&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyCopyright(<span class="hljs-string">&quot;Copyright ©  2021&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyTrademark(<span class="hljs-string">&quot;&quot;</span>)</span>]
 [<span class="hljs-meta">assembly: AssemblyCulture(<span class="hljs-string">&quot;&quot;</span>)</span>]
-
-<span class="hljs-comment">// Setting ComVisible to false makes the types in this assembly not visible</span>
-<span class="hljs-comment">// to COM components.  If you need to access a type in this assembly from</span>
-<span class="hljs-comment">// COM, set the ComVisible attribute to true on that type.</span>
 [<span class="hljs-meta">assembly: ComVisible(false)</span>]
-
-<span class="hljs-comment">// The following GUID is for the ID of the typelib if this project is exposed to COM</span>
-[<span class="hljs-meta">assembly: Guid(<span class="hljs-string">&quot;0fda72f0-ccd3-4b75-8896-f495ae82fc18&quot;</span>)</span>]
-<span class="hljs-comment">// Version information for an assembly consists of the following four values:</span>
-<span class="hljs-comment">//</span>
-<span class="hljs-comment">//      Major Version</span>
-<span class="hljs-comment">//      Minor Version</span>
-<span class="hljs-comment">//      Build Number</span>
-<span class="hljs-comment">//      Revision</span>
-<span class="hljs-comment">//</span>
-<span class="hljs-comment">// You can specify all the values or you can default the Build and Revision Numbers</span>
-<span class="hljs-comment">// by using the &#x27;*&#x27; as shown below:</span>
-<span class="hljs-comment">// [assembly: AssemblyVersion(&quot;1.0.*&quot;)]</span>
-[<span class="hljs-meta">assembly: AssemblyVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
-[<span class="hljs-meta">assembly: AssemblyFileVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
 </code></pre>
-</div></div><p>Add the assembly information file to the project</p>
-<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode source files&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-tag">&lt;<span class="hljs-name">Compile</span> <span class="hljs-attr">Include</span>=<span class="hljs-string">&quot;Properties/AssemblyInfo.cs&quot;</span> /&gt;</span>
+</div></div><h4>Plug-in ID</h4>
+<p>As part of the assembly information a GUID is specified as well. Here great care
+should be taken to ensure it is actually unique and not one copied from sample
+code, like the one from this book. Conflicting GUIDs will cause Rhino to
+complain about duplicate IDs and further ignore the plug-in during attempts to
+load it. In other words the assembly GUID is <em>also</em> the Rhino plug-in ID.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode plugin guid&gt;&gt;=</div><div class="code"><pre title=": <<jesterLiveCode plugin guid>>=">[assembly: Guid(&quot;0fda72f0-ccd3-4b75-8896-f495ae82fc18&quot;)]
+</pre>
+</div></div><h4>Plug-in versioning</h4>
+<p>It is best to follow the versioning schema as used by Microsoft using four
+digits seperated by dots. This can be a combination of major version, minor
+version, build number, revision. The most important aspect here is to keep
+consistent so that versions and releases can be tracked properly, especially
+with regard to bug reports, but also for roadmapping future development.</p>
+<div class="codefragment"><div class="fragmentname">&lt;&lt;jesterLiveCode plugin versioning&gt;&gt;=</div><div class="code"><pre><code>[<span class="hljs-meta">assembly: AssemblyVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
+[<span class="hljs-meta">assembly: AssemblyFileVersion(<span class="hljs-string">&quot;0.0.1.0&quot;</span>)</span>]
 </code></pre>
 </div></div><h2>Creating a command</h2>
 <p>A command in Rhino derives from <code>Rhino.Commands.Command</code>. There two mandatory
@@ -162,16 +207,21 @@ object. These will be provided in <code>&lt;&lt;jesterBox command utilities&gt;&
 }
 </code></pre>
 </div></div><h3>The mandatory overrides for a Command class</h3>
+<h4>English name of the command</h4>
 <p>To get a minimal working <code>Command</code> the property <code>EnglishName</code>. This property
 will essentially be the name of the command as you type it into the Rhino
 command-line.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> EnglishName =&gt; <span class="hljs-string">&quot;jesterBox&quot;</span>;
 </code></pre>
-</div></div><p>We also want to try localize our plug-in. To that end we need to override the
-<code>LocalName</code> property. Note that we do need access to the <code>Localization</code> class of
-the <code>Rhino.UI</code> namespace.</p>
-<p>We need the assembly object our plug-in to pass on to the localization system.
-For this we also need access to the <code>System.Reflection</code> assembly.</p>
+</div></div><h4>Local name of the command</h4>
+<p>We are localizing our plug-in. To that end we need to override the <code>LocalName</code>
+property. Note that we do need access to the <code>Localization</code> class of the
+<code>Rhino.UI</code> namespace to get access to the <code>LocalizeString</code> method.
+<code>LocalizeString</code> is going to be the main work horse for our localization
+efforts.</p>
+<p>We need the assembly object of our plug-in to pass on to the localization
+system. The <code>System.Reflection</code> namespace will give us the tools we need for
+that.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-keyword">public</span> <span class="hljs-keyword">override</span> <span class="hljs-built_in">string</span> LocalName {
     <span class="hljs-keyword">get</span> {
         Assembly ass = Assembly.GetExecutingAssembly();
@@ -188,7 +238,21 @@ actual meat of the command. Here the driving logic of the command will live. We
 want to add an object, a box actually, with given dimensions to a place where
 the user has picked a point.</p>
 <h4>RunCommand implementation</h4>
-<p>The main structure looks a bit like this:</p>
+<p>The center of our command is the implementation of <code>RunCommand</code>. This method
+gets run when the command is used on the Rhino command-line, through buttons on
+toolbars or entries in menus, and through scripting.</p>
+<p>Upon execution the command is given a reference to the document for which it is
+being run as well as the type of interaction with the command. This is a way to
+distinguish between command-line usage and potential GUI usage. It is customary
+for commands to implement the two workflows where it makes sense. Command-line
+usage means no dialogs are going to be popped up to request input from the user.
+This is useful especially for usage in scripts and automation, but users may
+prefer using command-line based interaction only. For the interactive workflow
+commands have the opportunity to use a custom GUI to allow the user to interact
+with the command. Data could be presented in perhaps a more clear layout. Such
+GUI generally is modal and needs to be closed either through acceptance or
+cancellation.</p>
+<p>For <code>jesterBox</code> we are going to implement only command-line interaction.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;first command overrides&gt;&gt;=+</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> Result <span class="hljs-title">RunCommand</span>(<span class="hljs-params">RhinoDoc doc, RunMode mode</span>)</span>
 {
     &lt;&lt;<span class="hljs-keyword">add</span> command options&gt;&gt;
@@ -391,6 +455,13 @@ geometry will easily get clipped.</p>
 }
 </code></pre>
 </div></div><h3>Drawing the temporary geometry</h3>
+<p>The display conduit will be drawing not just one preview, but also a second
+preview based on the mouse cursor movements. The first, and main, preview of the
+object will be drawn with the dimensions entered on the command-line at the
+location specified by user clicks in the world.</p>
+<p>However, when the user moves the mouse cursor a secondary preview will be shown
+at the world location determined by the mouse location. The secondary preview
+uses a different color for the drawing.</p>
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxConduit draw overlay&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-function"><span class="hljs-keyword">protected</span> <span class="hljs-keyword">override</span> <span class="hljs-keyword">void</span> <span class="hljs-title">DrawOverlay</span>(<span class="hljs-params">DrawEventArgs drawe</span>)</span>
 {
     <span class="hljs-keyword">base</span>.DrawOverlay(drawe);
@@ -432,9 +503,9 @@ We need also access to <code>Point3d</code> from  the <code>Rhino.Geometry</code
 <div class="codefragment"><div class="fragmentname">&lt;&lt;jesterBoxGetPoint imports&gt;&gt;=</div><div class="code"><pre><code><span class="hljs-keyword">using</span> Rhino.Input.Custom;
 <span class="hljs-keyword">using</span> Rhino.Geometry;
 </code></pre>
-</div></div><p>There are two parts to the public API for our <code>GetPoint</code> implementation:
-overriding the <code>OnMouseMove</code> method and providing a property
-<code>PotentialLocation</code>.</p>
+</div></div><p>There are two parts that work together through our <code>GetPoint</code> implementation:
+overriding the <code>OnMouseMove</code> method and providing a property <code>PotentialLocation</code>
+on the conduit. The latter we introduced in <code>&lt;&lt;jesterBoxConduit data access&gt;&gt;</code>.</p>
 <p>Our <code>OnMouseMove</code> implementation is only going to harvest the <code>Point</code> property
 from the event argument passed to it when called. This we save to the display
 conduit for further usage.</p>
@@ -443,7 +514,10 @@ conduit for further usage.</p>
     _conduit.PotentialLocation = e.Point;
 }
 </code></pre>
-</div></div><h2>Localizing the command</h2>
+</div></div><p>This mechanism ensures we have always the current world location based on the
+mouse cursor movements available in the display conduit. With this information
+we can draw a secondary preview of the object to be added by the command.</p>
+<h2>Localizing the command</h2>
 <p>Earlier we used <code>Localization.LocalizeString</code> to set up our code for localized versions of the command <code>jesterBox</code>. We need now the localization files that are formatted with XML. The files should be located next to the RHP file our project generates.</p>
 <p>For this project lets try to localize some strings to Finnish and Dutch. For now we are going to assume that correct language identifier has been set with Python in a separate script. For Finnish the LCID is 1035 and for Dutch it is 1043.</p>
 <h3>Finnish localization</h3>
